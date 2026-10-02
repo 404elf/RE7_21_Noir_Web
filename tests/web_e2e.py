@@ -16,6 +16,7 @@ import time
 import urllib.request
 
 from playwright.sync_api import sync_playwright, expect
+from web_custom_e2e import check_customization
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -225,6 +226,7 @@ def main():
     args = parser.parse_args()
     if args.url:
         run(args.url.rstrip("/"))
+        check_customization(args.url.rstrip("/"))
         return
     with tempfile.TemporaryDirectory(prefix="noir-web-e2e-") as temp:
         directory = Path(temp)
@@ -251,6 +253,7 @@ def main():
                     except OSError:
                         time.sleep(.1)
                 run(url, fast=True)
+                check_customization(url)
             finally:
                 process.terminate()
                 process.wait(timeout=10)

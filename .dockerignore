@@ -9,6 +9,8 @@
 !config.json
 !timer.json
 !LICENSE
+!presets/
+!presets/*.json
 !web/
 !web/**
 web/**/__pycache__/
