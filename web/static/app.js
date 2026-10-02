@@ -1,5 +1,6 @@
 import { receive } from './transport.js';
 import { deal, feedback, toggleSound } from './presentation.js';
+import { SettingsEditor, settingsSummary } from './settings.js';
 const appRoot = new URL('./', import.meta.url);
 const storagePrefix = appRoot.pathname === '/' ? '' : appRoot.pathname;
 const seatKey = `${storagePrefix}noir-seat`, nameKey = `${storagePrefix}noir-name`;
@@ -14,6 +15,8 @@ let catalog = {}, state = null, seat = null, socket = null, selected = null;
 let pending = null, rendered = -1, reconnectTimer, heartbeat, toastTimer, cooldownTimer;
 let closing = false, retry = 0, online = false, cooldown = 0;
 let syncing = false;
+const settingsEditor = new SettingsEditor(appRoot);
+let roomDraft = null;
 
 function storageRead(key) { try { return sessionStorage.getItem(key); } catch { return null; } }
 function saveSeat(value) {
@@ -38,11 +41,11 @@ function cardInfo(name) { return catalog[name] || { title: name, description: ''
 function myPlayer() { return state?.players.find((p) => p.id === state.pid); }
 function playerName(pid) { return pid === state?.pid ? '你' : state?.players.find((p) => p.id === pid)?.name || '对手'; }
 
-async function enter(path) {
+async function enter(path, settings = null) {
   $('home-error').textContent = '';
   $('create-room').disabled = $('join-room').disabled = true;
   try {
-    const response = await fetch(new URL(path, appRoot), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: $('nickname').value.trim() }) });
+    const response = await fetch(new URL(path, appRoot), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: $('nickname').value.trim(), ...(settings || {}) }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || '无法进入房间。');
     saveSeat(data);
@@ -51,7 +54,7 @@ async function enter(path) {
     state = null; rendered = -1; closing = false; retry = 0;
     connect();
   } catch (error) { $('home-error').textContent = error.message; }
-  finally { $('create-room').disabled = $('join-room').disabled = false; }
+  finally { $('create-room').disabled = !roomDraft; $('join-room').disabled = false; }
 }
 
 function connect() {
@@ -132,6 +135,7 @@ function send(type, action, index) {
 }
 
 function render() {
+  settingsEditor.refreshRoom({ config: state.rules, timer: state.timer });
   $('home').hidden = true; $('room').hidden = false;
   $('lobby').hidden = state.phase !== 'LOBBY'; $('game').hidden = state.phase === 'LOBBY';
   if (state.paused) $('notice').textContent = `对手连接中断，牌局与计时已暂停。剩余重连时间 ${state.reconnect_seconds} 秒。`;
@@ -152,9 +156,10 @@ function renderLobby() {
     node.append(element('strong', p.name), element('span', p.ready ? '已准备' : p.connected ? '已入座 · 等待准备' : '等待连接'));
     return node;
   }));
-  const config = state.rules.game_settings;
-  $('lobby-settings').textContent = `目标 ${config.target_score} · 生命 ${config.max_hp} · 数字牌 ${config.deck_range_start}–${config.deck_range_end} · ${state.timer.enabled ? { turn: '行动计时', round: '每局计时', fischer: '整场加秒制' }[state.timer.mode] : '不限时'}`;
-  $('ready').textContent = myPlayer().ready ? '已准备 · 等待对手' : '我准备好了';
+  $('lobby-settings').textContent = settingsSummary({ config: state.rules, timer: state.timer });
+  $('lobby-target').textContent = state.rules.game_settings.target_score;
+  $('ready').textContent = myPlayer().ready ? '已确认 · 等待对手' : '确认规则并准备';
+  $('edit-room-settings').hidden = state.pid !== 1;
 }
 
 function renderPlayer(p, mine) {
@@ -294,6 +299,8 @@ function updateClocks() {
 function updateControls() {
   const ready = online && !syncing && state && pending === null;
   $('ready').disabled = !ready || state?.phase !== 'LOBBY' || myPlayer()?.ready;
+  $('edit-room-settings').disabled = !ready || state?.settings_locked || state?.pid !== 1;
+  $('room-settings').disabled = !state || !settingsEditor.options;
   const action = ready && !state.paused && state.phase === 'ACTION';
   const turn = action && state.turn === state.pid && Date.now() >= cooldown;
   const lockedDraw = state?.active_trumps?.some((t) => t.owner !== state.pid && ['GAMBLE', 'SILENCE'].includes(t.type));
@@ -320,7 +327,23 @@ function renderCatalog() {
   }));
 }
 
-$('create-room').onclick = () => enter('api/rooms');
+$('create-room').onclick = () => enter('api/rooms', roomDraft);
+$('customize-room').onclick = () => settingsEditor.open(roomDraft, { save(value) {
+  roomDraft = value; $('new-settings-summary').textContent = settingsSummary(value);
+} });
+$('room-settings').onclick = () => settingsEditor.open({ config: state.rules, timer: state.timer }, { readonly: true, room: true });
+$('edit-room-settings').onclick = () => {
+  const code = state.room, revision = state.revision;
+  settingsEditor.open({ config: state.rules, timer: state.timer }, { room: true, async save(value) {
+    const response = await fetch(new URL(`api/rooms/${encodeURIComponent(code)}/settings`, appRoot), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...value, token: seat.token, revision }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || '无法修改规则。');
+    toast('规则已更新，双方请重新确认并准备。');
+  } });
+};
 $('join-form').onsubmit = (event) => { event.preventDefault(); const code = $('room-code').value.trim().toUpperCase(); if (!/^[A-Z2-9]{8}$/.test(code)) { $('home-error').textContent = '请输入完整的 8 位房间码。'; return; } enter(`api/rooms/${encodeURIComponent(code)}/join`); };
 $('ready').onclick = () => send('ready');
 for (const [id, action] of Object.entries({ hit: 'HIT', stay: 'STAY', rematch: 'REMATCH', 'offer-draw': 'DRAW_OFFER', 'accept-draw': 'DRAW_ACCEPT', 'decline-draw': 'DRAW_DECLINE' })) $(id).onclick = () => send('action', action);
@@ -391,7 +414,7 @@ document.addEventListener('pointerup', (event) => {
 document.addEventListener('pointercancel', () => { endDrag(); suppressClick = false; });
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { endDrag(); suppressClick = false; } });
 document.addEventListener('keydown', (event) => {
-  if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || $('rules-dialog').open || $('confirm-dialog').open || ['INPUT', 'TEXTAREA', 'BUTTON'].includes(document.activeElement.tagName)) return;
+  if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || $('rules-dialog').open || $('confirm-dialog').open || $('settings-dialog').open || ['INPUT', 'TEXTAREA', 'BUTTON', 'SELECT'].includes(document.activeElement.tagName)) return;
   const button = event.key.toLowerCase() === 'h' ? $('hit') : event.key.toLowerCase() === 's' ? $('stay') : null;
   if (button && !button.disabled) { event.preventDefault(); button.click(); }
 });
@@ -402,6 +425,12 @@ async function init() {
   $('nickname').value = storageRead(nameKey) || '无名旅人';
   try { const response = await fetch(new URL('api/catalog', appRoot)); if (!response.ok) throw new Error(); catalog = await response.json(); }
   catch { toast('图鉴加载失败，请检查网络后刷新。'); }
+  try {
+    if (!Object.keys(catalog).length) throw new Error('设置加载失败，请刷新后重试。');
+    roomDraft = await settingsEditor.init(catalog);
+    $('new-settings-summary').textContent = settingsSummary(roomDraft);
+    $('customize-room').disabled = $('create-room').disabled = false;
+  } catch (error) { $('home-error').textContent = error.message; }
   try { const saved = JSON.parse(storageRead(seatKey)); if (saved && typeof saved.token === 'string' && /^[A-Z2-9]{8}$/.test(saved.room)) { seat = saved; connect(); } }
   catch { saveSeat(null); }
 }

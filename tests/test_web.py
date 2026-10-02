@@ -397,3 +397,176 @@ def test_same_seat_cannot_attach_twice_and_non_ascii_token_rejected():
     with pytest.raises(RoomError):
         room.identify("伪造凭证")
     assert room.identify(room.seats[1].token) == 1
+
+
+def test_desktop_presets_and_settings_schema_are_available(app):
+    with TestClient(app) as client:
+        options = client.get('/api/settings').json()
+        assert {p['name'] for p in options['presets']} == {
+            '基础版', '平衡版', '娱乐版', '混沌版', '资源版', '地下室的盛宴', '最后一根手指', '烛火局'}
+        for preset in options['presets']:
+            response = client.post('/api/settings/validate', json={'config': preset['config']})
+            assert response.status_code == 200
+            assert response.json()['config'] == preset['config']
+        defaults = options['defaults']
+        assert defaults['config']['game_settings']['max_hp'] == 1
+        assert 'Return+' in defaults['config']['trump_weights'] and 'ADD2+' not in defaults['config']['trump_weights']
+        assert len(options['game_fields']) == 10 and len(options['timer_fields']) == 6
+
+
+@pytest.mark.parametrize('data', [
+    {'config': []}, {'config': {'game_settings': []}}, {'config': {'trump_weights': []}},
+    {'config': {'game_settings': {'max_hp': True}}},
+    {'config': {'game_settings': {'max_hp': 1.5}}},
+    {'config': {'game_settings': {'max_hp': 1000}}},
+    {'config': {'game_settings': {'max_hp': float('nan')}}},
+    {'config': {'game_settings': {'deck_range_start': 9, 'deck_range_end': 11}}},
+    {'config': {'game_settings': {'hit_draw_trump_probability': 1.01}}},
+    {'config': {'game_settings': {'result_screen_duration': float('inf')}}},
+    {'config': {'game_settings': {'unknown': 3}}},
+    {'config': {'trump_weights': {'Unknown': 1}}},
+    {'config': {'trump_weights': {'Shield': -1}}},
+    {'config': {'trump_weights': {'Shield': True}}},
+    {'config': {'trump_weights': {'Shield': float('nan')}}},
+    {'config': {'trump_weights': {'Shield': 10001}}},
+    {'config': {'path': '../../config.json'}},
+    {'timer': []}, {'timer': {'enabled': 'true'}}, {'timer': {'mode': 'unknown'}},
+    {'timer': {'turn_seconds': 0}}, {'timer': {'turn_seconds': 3601}},
+    {'timer': {'settlement_seconds': None}}, {'timer': {'settlement_seconds': 61}},
+    {'timer': {'increment_seconds': -1}}, {'timer': {'initial_minutes': float('inf')}},
+    {'timer': {'preparation_seconds': True}}, {'timer': {'unknown': 30}},
+])
+def test_untrusted_configuration_is_rejected_without_creating_rooms(app, data):
+    # Use raw JSON for NaN / Infinity: some HTTP clients refuse to serialize them.
+    with TestClient(app) as client:
+        data['name'] = 'Host'
+        response = client.post('/api/rooms', content=json.dumps(data), headers={'content-type': 'application/json'})
+        assert response.status_code == 400 and response.json()['error']
+        assert not app.state.rooms.rooms
+
+
+def test_legacy_json_round_trip_null_clocks_and_request_bounds(app):
+    legacy = json.loads((ROOT / 'presets' / '基础版.json').read_text(encoding='utf-8-sig'))
+    timer = {'enabled': True, 'mode': 'fischer', 'initial_minutes': None,
+             'turn_seconds': None, 'round_seconds': None, 'preparation_seconds': None,
+             'increment_seconds': 3.5, 'settlement_seconds': 0}
+    with TestClient(app) as client:
+        assert len(json.dumps(legacy, ensure_ascii=False).encode()) > 2048
+        value = client.post('/api/settings/validate', json={'config': legacy, 'timer': timer}).json()
+        assert value['config']['game_settings']['max_hp'] == 10
+        assert value['timer'] == timer
+        assert not any(k.startswith('_comment') for k in value['config']['trump_weights'])
+        assert client.post('/api/settings/validate', json=value).json() == value
+        config_bytes, timer_bytes = (ROOT / 'config.json').read_bytes(), (ROOT / 'timer.json').read_bytes()
+        created = client.post('/api/rooms', json={'name': 'Host', **value})
+        assert created.status_code == 201
+        room = app.state.rooms.get(created.json()['room'])
+        assert room.rules == value['config'] and room.timer == value['timer']
+        assert (ROOT / 'config.json').read_bytes() == config_bytes and (ROOT / 'timer.json').read_bytes() == timer_bytes
+        too_big = {'name': 'Host', 'config': {'_comment': 'x' * 17000}}
+        assert client.post('/api/rooms', json=too_big).status_code == 400
+        invalid_integer = client.post('/api/rooms', json={'name': 'Host', 'config': {'game_settings': {'deck_range_start': 1.0}}})
+        assert invalid_integer.status_code == 201
+        assert type(app.state.rooms.get(invalid_integer.json()['room']).rules['game_settings']['deck_range_start']) is int
+
+
+def test_two_different_room_rules_drive_engine_clocks_and_rematches_independently(app):
+    class TestSocket:
+        async def send_json(self, value):
+            pass
+
+        async def close(self, code):
+            pass
+
+    with TestClient(app) as client:
+        defaults = client.get('/api/settings').json()['defaults']
+        rooms = []
+        engine_globals = (engine.SETTINGS, engine.WEIGHTS, engine.MAX_HP, engine.MAX_TRUMPS, engine.MAX_TABLE_SLOTS)
+        for hp, target, high, card, mode in [(3, 27, 17, 'Add 1', 'turn'), (5, 21, 9, 'Shield', 'fischer')]:
+            config = copy.deepcopy(defaults['config'])
+            config['game_settings'].update(max_hp=hp, target_score=target, deck_range_end=high,
+                                           initial_trumps_count=2, round_reward_trumps_count=0,
+                                           number_card_draw_probability=0, hit_draw_trump_probability=0)
+            config['trump_weights'] = dict.fromkeys(config['trump_weights'], 0)
+            config['trump_weights'][card] = 1
+            timer = dict(defaults['timer'], enabled=True, mode=mode, turn_seconds=60,
+                         initial_minutes=2, preparation_seconds=None)
+            seat = client.post('/api/rooms', json={'name': 'Host', 'config': config, 'timer': timer}).json()
+            room = app.state.rooms.get(seat['room'])
+            room.join('Guest')
+            room.seats[1].socket, room.seats[2].socket = TestSocket(), TestSocket()
+            room.seats[1].ready = room.seats[2].ready = True
+            room.advance()
+            assert room.match.gs.max_hp_limit == hp and room.match.gs.target_score == target
+            assert len(room.match.gs.deck) + len(room.match.gs.p1_hand) + len(room.match.gs.p2_hand) == high
+            assert all(c[0] == card for c in room.match.gs.p1_trumps + room.match.gs.p2_trumps)
+            assert room.match.remaining[1] == (60 if mode == 'turn' else 120)
+            rooms.append(room)
+        a, b = rooms
+        a.rules['trump_weights']['Shield'] = 2
+        assert b.rules['trump_weights']['Shield'] == 1
+        assert defaults['config']['trump_weights']['Shield'] == 10
+        assert a.timer is not b.timer
+        act(a, 1, 'SURRENDER')
+        assert b.match.gs.phase == 'ACTION' and a.snapshot(1)['settings_locked']
+        with pytest.raises(RoomError, match='锁定'):
+            a.configure(1, a.revision, b.rules, b.timer)
+        act(a, 1, 'REMATCH'); act(a, 2, 'REMATCH')
+        assert a.match.gs.max_hp_limit == 3 and a.match.gs.target_score == 27
+        assert b.match.gs.max_hp_limit == 5 and b.match.gs.target_score == 21
+        assert (engine.SETTINGS, engine.WEIGHTS, engine.MAX_HP, engine.MAX_TRUMPS, engine.MAX_TABLE_SLOTS) == engine_globals
+        for room in rooms:  # Test doubles have no real websocket to close.
+            for seat in room.seats.values(): seat.socket = None
+
+
+def test_host_edits_reset_ready_broadcast_to_guest_and_lock_at_start(app):
+    with TestClient(app) as client:
+        host = client.post('/api/rooms', json={'name': 'Host'}).json()
+        code = host['room']
+        guest = client.post(f'/api/rooms/{code}/join', json={'name': 'Guest'}).json()
+        endpoint = f'/api/rooms/{code}/settings'
+        with client.websocket_connect(f'/ws/{code}', headers=ORIGIN) as a:
+            authenticate(a, host)
+            with client.websocket_connect(f'/ws/{code}', headers=ORIGIN) as b:
+                gb = authenticate(b, guest)
+                ha = wait_state(a, lambda s: s['players'][1]['connected'])
+                ready(a, ha)
+                ha = wait_state(a, lambda s: s['players'][0]['ready'])
+                gb = wait_state(b, lambda s: s['players'][0]['ready'])
+                selected = {'config': {'game_settings': {'max_hp': 3, 'target_score': 27}},
+                            'timer': {'enabled': False, 'settlement_seconds': 0}, 'revision': ha['revision']}
+                assert client.post(endpoint, json={**selected, 'token': guest['token']}).status_code == 400
+                assert client.post(endpoint, json={**selected, 'token': 'bad'}).status_code == 400
+                assert client.post(endpoint, json={**selected, 'token': host['token'], 'revision': -1}).status_code == 400
+                assert client.post(endpoint, json={**selected, 'token': host['token']}).status_code == 200
+                ha = wait_state(a, lambda s: s['rules']['game_settings']['target_score'] == 27)
+                latest = wait_state(b, lambda s: s['rules']['game_settings']['target_score'] == 27)
+                assert not any(p['ready'] for p in latest['players'])
+                assert latest['rules'] == ha['rules'] and latest['timer'] == ha['timer']
+                assert not latest['settings_locked']
+                ready(b, gb)  # A confirmation for the old rules must not count.
+                assert b.receive_json()['type'] == 'error'
+                ready(a, ha)
+                ha = wait_state(a, lambda s: s['players'][0]['ready'])
+                latest = wait_state(b, lambda s: s['players'][0]['ready'])
+                ready(b, latest)
+                ha = wait_state(a, lambda s: s['phase'] == 'ACTION')
+                gb = wait_state(b, lambda s: s['phase'] == 'ACTION')
+                assert ha['max_hp'] == gb['max_hp'] == 3 and ha['target'] == gb['target'] == 27
+                assert ha['settings_locked'] and gb['settings_locked']
+                before = copy.deepcopy(app.state.rooms.get(code).rules)
+                response = client.post(endpoint, json={**selected, 'token': host['token'], 'revision': ha['revision']})
+                assert response.status_code == 400 and '锁定' in response.json()['error']
+                assert app.state.rooms.get(code).rules == before
+
+
+def test_customization_routes_follow_base_path(app):
+    prefixed = create_app(base_path='/re7')
+    with TestClient(prefixed) as client:
+        assert client.get('/api/settings').status_code == 404
+        defaults = client.get('/re7/api/settings').json()['defaults']
+        assert client.post('/re7/api/settings/validate', json=defaults).status_code == 200
+        host = client.post('/re7/api/rooms', json={'name': 'Host', **defaults}).json()
+        room = prefixed.state.rooms.get(host['room'])
+        assert client.post(f"/re7/api/rooms/{host['room']}/settings", json={
+            **defaults, 'token': host['token'], 'revision': room.revision}).status_code == 200

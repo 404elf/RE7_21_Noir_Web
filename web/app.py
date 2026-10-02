@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from cards import CARDS, english_name
-from web.config import ROOT, load_clock, load_rules
+from web.config import ROOT, customization_options, load_clock, load_rules, settings_checked
 from web.rooms import RoomError, RoomService
 
 HEARTBEAT_TIMEOUT = 45
@@ -22,6 +22,7 @@ def create_app(*, config_path=None, timer_path=None, service_options=None, base_
     rules = load_rules(config_path or os.environ.get("NOIR_CONFIG", ROOT / "config.json"))
     timer = load_clock(timer_path or os.environ.get("NOIR_TIMER", ROOT / "timer.json"), rules)
     service = RoomService(rules, timer, **(service_options or {}))
+    options = customization_options(rules, timer)
     public_origin = os.environ.get("NOIR_ORIGIN", "").rstrip("/")
     base_path = (os.environ.get("NOIR_BASE_PATH", "") if base_path is None else base_path).rstrip("/")
     if base_path and not re.fullmatch(r"(?:/[A-Za-z0-9_-]+)+", base_path):
@@ -57,17 +58,17 @@ def create_app(*, config_path=None, timer_path=None, service_options=None, base_
         })
         return response
 
-    async def payload(request):
+    async def payload(request, limit=2048):
         if request.headers.get("content-type", "").split(";")[0] != "application/json":
             raise RoomError("请使用 JSON 请求。")
         raw = bytearray()
         async for chunk in request.stream():
             raw.extend(chunk)
-            if len(raw) > 2048:
+            if len(raw) > limit:
                 raise RoomError("请求太大。")
         try:
             value = json.loads(raw)
-        except (ValueError, UnicodeError):
+        except (ValueError, UnicodeError, RecursionError):
             raise RoomError("JSON 格式错误。") from None
         if not isinstance(value, dict):
             raise RoomError("请求必须是对象。")
@@ -107,12 +108,41 @@ def create_app(*, config_path=None, timer_path=None, service_options=None, base_
         return {name: dict(name=name, title=row[0], category=row[1], description=row[2],
                            english=english_name(name)) for name, row in CARDS.items()}
 
+    @app.get(base_path + "/api/settings")
+    async def settings():
+        return options
+
+    def checked(data):
+        try:
+            return settings_checked(data, rules, timer)
+        except (ValueError, OverflowError) as exc:
+            raise RoomError(str(exc)[:180]) from None
+
+    @app.post(base_path + "/api/settings/validate")
+    async def validate_settings(request: Request):
+        service.limit(request.client.host if request.client else "unknown")
+        data = await payload(request, 16384)
+        selected_rules, selected_timer = checked(data)
+        return dict(config=selected_rules, timer=selected_timer)
+
     @app.post(base_path + "/api/rooms", status_code=201)
     async def create_room(request: Request):
         service.limit(request.client.host if request.client else "unknown")
-        data = await payload(request)
-        room = service.create(name_checked(data.get("name")))
+        data = await payload(request, 16384)
+        selected_rules, selected_timer = checked(data)
+        room = service.create(name_checked(data.get("name")), rules=selected_rules, timer=selected_timer)
         return seat_response(room, 1)
+
+    @app.post(base_path + "/api/rooms/{code}/settings")
+    async def update_settings(code: str, request: Request):
+        service.limit(request.client.host if request.client else "unknown")
+        data = await payload(request, 16384)
+        room = service.get(code.upper())
+        pid = room.identify(data.get("token"))
+        selected_rules, selected_timer = checked(data)
+        room.configure(pid, data.get("revision"), selected_rules, selected_timer)
+        await room.broadcast()
+        return {"revision": room.revision}
 
     @app.post(base_path + "/api/rooms/{code}/join")
     async def join_room(code: str, request: Request):

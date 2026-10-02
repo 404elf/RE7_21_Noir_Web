@@ -38,7 +38,8 @@ class Seat:
 
 class Room:
     def __init__(self, code, name, rules, timer, *, grace=60, clock=time.monotonic):
-        self.code, self.rules, self.timer = code, rules, timer
+        self.code = code
+        self.rules, self.timer = copy.deepcopy(rules), copy.deepcopy(timer)
         self.clock, self.grace = clock, grace
         self.seats = {1: Seat(name)}
         self.match = None
@@ -156,6 +157,19 @@ class Room:
             raise RoomError("当前不能执行：请检查行动方、封锁效果和 0.5 秒操作间隔。")
         self.changed()
 
+    def configure(self, pid, revision, rules, timer):
+        self.advance()
+        if pid != 1:
+            raise RoomError("只有房主可以修改房间规则。")
+        if self.match:
+            raise RoomError("对局已开始，规则已锁定。请另建房间使用新规则。")
+        if type(revision) is not int or revision != self.revision:
+            raise RoomError("房间已更新，请查看最新规则后重试。")
+        self.rules, self.timer = copy.deepcopy(rules), copy.deepcopy(timer)
+        for seat in self.seats.values():
+            seat.ready = False
+        self.changed()
+
     def snapshot(self, pid):
         """An explicit projection, never vars(gs) / wire.encode(gs)."""
         gs = self.match.gs if self.match else None
@@ -179,6 +193,7 @@ class Room:
             players.append(player)
         value = dict(type="state", room=self.code, revision=self.revision, pid=pid, players=players,
                      phase=gs.phase if gs else "LOBBY", paused=paused, rules=self.rules, timer=self.timer,
+                     settings_locked=self.match is not None,
                      reconnect_seconds=max(0, int(self.grace - (self.clock() - self.missing_since)))
                      if paused and self.missing_since is not None else None)
         if gs:
@@ -271,13 +286,14 @@ class RoomService:
             raise RoomError("请求过于频繁，请一分钟后重试。")
         times.append(now)
 
-    def create(self, name):
+    def create(self, name, *, rules=None, timer=None):
         if len(self.rooms) >= self.max_rooms:
             raise RoomError("房间已满，请稍后重试。")
         code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(8))
         while code in self.rooms:
             code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(8))
-        room = Room(code, name, self.rules, self.timer, grace=self.grace)
+        room = Room(code, name, self.rules if rules is None else rules,
+                    self.timer if timer is None else timer, grace=self.grace)
         self.rooms[code] = room
         room.task = asyncio.create_task(self.run(room), name=f"room-{code}")
         return room
