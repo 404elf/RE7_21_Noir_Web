@@ -15,6 +15,9 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
+          cache-dependency-path: |
+            requirements-web.txt
+            requirements-web-dev.txt
       - run: pip install -r requirements-web-dev.txt
       - run: python -c "import re7_21, web.app; assert re7_21.pygame is None"
       - run: python -m playwright install --with-deps chromium
