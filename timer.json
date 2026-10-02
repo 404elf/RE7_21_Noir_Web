@@ -1,0 +1,15 @@
+{
+  "_comment": "房主计时设置。enabled=false 关闭。turn=每次行动，round=每位玩家每局独立额度，fischer=整场时间额度。超时：turn/round 自动停牌，fischer 判负。",
+  "enabled": false,
+  "mode": "turn",
+  "turn_seconds": 30,
+  "round_seconds": 120,
+  "initial_minutes": 3,
+  "increment_seconds": 3,
+  "_comment_increment": "3+3 = initial_minutes:3, increment_seconds:3。仅抽牌/停牌交接行动后加秒，出牌和弃牌不加秒。结算与等待连接不计时。",
+  "settlement_seconds": 3,
+  "_comment_settlement": "结算亮牌等待秒数，默认3，设为0取消等待，最高60。上一局结果保留于侧栏。",
+  "preparation_seconds": 30,
+  "_comment_preparation": "启用计时时，仅整场第一局双方首次行动前各有独立准备时间，超时判负；第一次有效用牌/弃牌/抽牌/停牌后开始扣主时间。后续局直接使用主时间。null 表示准备不限时。",
+  "_comment_unlimited": "turn_seconds、round_seconds、initial_minutes、preparation_seconds 可为 null，表示对应项不限时。enabled=false 完全关闭计时。"
+}

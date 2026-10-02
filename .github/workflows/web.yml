@@ -1,0 +1,35 @@
+name: Browser game
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements-web-dev.txt
+      - run: python -c "import re7_21, web.app; assert re7_21.pygame is None"
+      - run: python -m playwright install --with-deps chromium
+      - run: python -m pytest tests -q
+      - run: python tests/web_e2e.py
+      - run: python tests/web_e2e.py --base-path /re7
+      - run: NOIR_TRUSTED_PROXIES=127.0.0.1 docker compose -f compose.yaml -f deploy/compose.proxy.example.yaml config --quiet
+      - run: NOIR_BASE_PATH=/re7 docker compose -p noir-web-ci up --build -d --wait
+      - run: python tests/web_e2e.py --url http://127.0.0.1:8000/re7
+      - if: always()
+        run: docker compose -p noir-web-ci down
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-screenshots
+          path: |
+            .artifacts/web-*.png
+            .artifacts/web-network.json

@@ -1,0 +1,14 @@
+.venv/
+.venv-web/
+__pycache__/
+*.pyc
+.pytest_cache/
+.artifacts/
+test-results/
+*.log
+.env
+.env.*
+!.env.example
+certs/
+*.pem
+*.key

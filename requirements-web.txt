@@ -1,0 +1,4 @@
+# Browser service only. No Pygame or Node.js is required.
+fastapi==0.141.1
+uvicorn==0.54.0
+websockets==17.1

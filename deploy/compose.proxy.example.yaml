@@ -1,0 +1,23 @@
+# Review-only override. The regular compose.yaml keeps proxy headers disabled.
+# Deployment usage (after verifying the proxy network and trust list):
+# docker compose -f compose.yaml -f deploy/compose.proxy.example.yaml up --build -d
+services:
+  game:
+    command:
+      - python
+      - -m
+      - uvicorn
+      - web.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - '8000'
+      - --workers
+      - '1'
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - '${NOIR_TRUSTED_PROXIES:?Set the verified proxy source IPs or CIDRs}'
+      - --ws-max-size
+      - '2048'
+      - --ws-max-queue
+      - '8'

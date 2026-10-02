@@ -1,0 +1,15 @@
+**
+!requirements-web.txt
+!app_paths.py
+!re7_21.py
+!match.py
+!cards.py
+!presentation_rules.py
+!rules.py
+!config.json
+!timer.json
+!LICENSE
+!web/
+!web/**
+web/**/__pycache__/
+web/**/*.pyc

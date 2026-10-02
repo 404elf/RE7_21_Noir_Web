@@ -1,0 +1,27 @@
+# Review-only snippets, not a complete TLS server configuration.
+# Put this map in the nginx http {} context, outside server {}.
+map $http_upgrade $noir_connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
+# Put these locations in the selected HTTPS server {} for your game domain.
+# Configure its server_name and certificates separately when deploying.
+location = /re7 {
+    return 308 /re7/$is_args$args;
+}
+
+location /re7/ {
+    # No URI/trailing slash here: preserve /re7/ for NOIR_BASE_PATH=/re7.
+    proxy_pass http://127.0.0.1:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $noir_connection_upgrade;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    # Replace, rather than append, client-provided forwarding headers.
+    # If another trusted edge sits in front, configure nginx real_ip first.
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_read_timeout 75s;
+    proxy_send_timeout 75s;
+}

@@ -1,0 +1,22 @@
+services:
+  game:
+    build: .
+    ports:
+      - "${NOIR_BIND:-127.0.0.1}:${NOIR_PORT:-8000}:8000"
+    environment:
+      NOIR_ORIGIN: "${NOIR_ORIGIN:-}"
+      NOIR_BASE_PATH: "${NOIR_BASE_PATH:-}"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./timer.json:/app/timer.json:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 256m
+    init: true
+    restart: unless-stopped

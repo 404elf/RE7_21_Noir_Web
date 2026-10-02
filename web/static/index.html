@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#100d0c">
+  <meta name="description" content="RE7 / 21 — NOIR，双人在线王牌对决。">
+  <title>21 · NOIR — 双人牌局</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"><div class="light-beam"></div><div class="grain"></div></div>
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="app-shell">
+    <header class="masthead">
+      <a class="wordmark" href="./" aria-label="NOIR 首页"><b>21</b><span>/</span>NOIR<i>THE BASEMENT CLUB</i></a>
+      <nav><span id="connection" class="connection">双人在线牌局</span><button id="sound-toggle" class="text-button" aria-pressed="false">音效：关</button><button id="rules-open" class="text-button">王牌图鉴 <span>↗</span></button></nav>
+    </header>
+
+    <main>
+      <section id="home" class="home">
+        <div class="hero">
+          <p class="eyebrow"><span class="tiny-line"></span> A PRIVATE GAME OF CONSEQUENCE</p>
+          <h1>命运，<br>尚未<span>翻牌。</span></h1>
+          <p class="hero-copy">藏好底牌。改写规则。<br>在地下室的最后一束光里，赌下一手。</p>
+          <div class="hero-cards" aria-hidden="true"><div class="hero-card back"><span>◆</span><strong>NOIR</strong><small>THE BASEMENT CLUB</small></div><div class="hero-card front"><small>21 / THE LAST HAND</small><span class="hero-suit">♠</span><strong>21</strong><span>FORTUNE FAVOURS THE BOLD</span></div><div class="hero-card third"><small>XI</small><strong>11</strong><span>♠</span></div></div>
+          <div class="hero-caption"><span class="hero-index">01 / 21</span><p>一张王牌，足以改变结局。<br><small>RE7 · 21 / NOIR — BROWSER EDITION</small></p></div>
+          <p class="hero-note">两人对决 <span>◆</span> 共享牌堆 <span>◆</span> 生命赌注</p>
+        </div>
+        <div class="entry-panel">
+          <p class="eyebrow">TAKE YOUR SEAT</p>
+          <h2>入座。<br>故事从你开始。</h2>
+          <p class="muted">创建房间，把房间码或链接发给朋友。</p>
+          <label for="nickname">你的称呼</label>
+          <input id="nickname" autocomplete="nickname" maxlength="20" placeholder="例如：无名旅人" value="无名旅人">
+          <button id="create-room" class="primary wide">创建房间 <span>→</span></button>
+          <div class="divider"><span>或加入朋友的牌局</span></div>
+          <form id="join-form">
+            <label for="room-code">房间码</label>
+            <div class="join-row"><input id="room-code" maxlength="8" autocomplete="off" spellcheck="false" placeholder="8 位房间码" aria-label="房间码"><button id="join-room" type="submit" class="secondary">加入 ↗</button></div>
+          </form>
+          <p id="home-error" class="error" role="alert"></p>
+          <div class="entry-foot"><span>♠</span><p>一位朋友，一副牌，一场较量。<br><small>无需安装 · 等待房间保留 5 分钟</small></p></div>
+        </div>
+      </section>
+
+      <section id="room" hidden>
+        <div class="room-heading"><div><p class="eyebrow">THE BASEMENT / PRIVATE TABLE</p><h1>牌桌 <span id="room-label"></span></h1></div><div class="room-links"><button id="copy-invite" class="secondary">复制邀请链接 ↗</button><button id="leave-room" class="text-button">离席</button></div></div>
+        <div id="notice" class="notice" role="status" aria-live="polite"></div>
+        <div id="lobby" class="lobby panel">
+          <div><p class="eyebrow">BEFORE THE FIRST HAND</p><h2>等你，也等一位对手。</h2><p class="muted">双方准备后开始。房间采用服务器的游戏与计时配置。</p><div id="lobby-players" class="lobby-players"></div><button id="ready" class="primary" disabled>我准备好了</button></div>
+          <div class="lobby-rules"><span class="big-21">21</span><div id="lobby-settings"></div></div>
+        </div>
+        <div id="game" class="game-layout" hidden>
+          <div class="play-area">
+            <div class="table panel">
+              <div class="table-top"><span id="round-label" class="eyebrow"></span><span id="table-status">THE LAST HAND</span><span id="deck-label" class="muted"></span></div>
+              <section id="opponent" class="player opponent" aria-label="对手牌区"></section>
+              <div id="opponent-effects" class="effects" aria-label="对手场上王牌"></div>
+              <div class="table-center" id="play-drop" data-drop="play"><div class="table-inscription">FORTUNE<br><small>FAVOURS THE BOLD</small></div><div class="target-seal"><span>本局目标</span><strong id="target">21</strong><small>THE LIMIT</small></div><div class="deck-stack" aria-hidden="true"><span>◆</span><small>NOIR</small></div><div id="table-verdict" class="table-verdict" hidden><small id="verdict-label"></small><strong id="verdict-title"></strong></div><span class="drop-label">松手打出王牌</span></div>
+              <div id="my-effects" class="effects" aria-label="我的场上王牌"></div>
+              <section id="my-player" class="player mine" aria-label="我的牌区"></section>
+              <div class="turn-actions"><p id="turn-hint"></p><div><button id="hit" class="primary">抽牌 <kbd>H</kbd></button><button id="stay" class="secondary">停牌 <kbd>S</kbd></button></div></div>
+            </div>
+            <section class="trump-panel panel"><div class="section-heading"><h2><span class="eyebrow">YOUR ARSENAL</span>我的王牌 <small id="trump-count"></small></h2><span class="muted">点选查看 · 拖至牌桌出牌</span></div><div id="trump-hand" class="trump-hand"></div><div class="trump-detail"><div><strong id="selected-title">选择一张王牌</strong><p id="selected-description">出牌与弃牌不结束行动；出牌会解除对手的停牌。</p></div><div id="discard-drop" data-drop="discard"><button id="use-trump" class="primary" disabled>使用王牌 ↗</button><button id="discard-trump" class="text-button" disabled>弃牌</button><span class="drop-label">松手弃牌</span></div></div></section>
+          </div>
+          <aside class="sidebar">
+            <section id="result-panel" class="panel result-panel" hidden><p class="eyebrow">THE VERDICT</p><h2 id="result-title"></h2><p id="result-text"></p><button id="rematch" class="primary wide" hidden>再来一场</button></section>
+            <section class="panel journal"><div class="section-heading"><h2><span class="eyebrow">THE CHRONICLE</span>牌局记录</h2><span class="small-mark">LIVE</span></div><ol id="events"></ol></section>
+            <section class="panel small-panel"><h3>牌桌约定</h3><p>首张数字牌为暗牌，结算时揭晓。双方连续停牌后结算；爆牌后仍可使用王牌自救。</p><p>输家扣除赌注对应生命值。双方都爆牌时，点数较小的一方获胜。</p><div id="draw-request" hidden><p id="draw-request-text"></p><button id="accept-draw" class="secondary">接受求和</button><button id="decline-draw" class="text-button">拒绝</button></div><div class="match-controls"><button id="offer-draw" class="text-button">提出求和</button><button id="surrender" class="text-button danger">投降</button></div></section>
+          </aside>
+        </div>
+      </section>
+    </main>
+    <footer><span>RE7 / 21 — NOIR</span><span>一副数字牌，无数种结局。</span><span>FAN-MADE · v1.5.3 RULES</span></footer>
+  </div>
+  <dialog id="rules-dialog"><div class="dialog-heading"><div><p class="eyebrow">KNOW YOUR CARDS</p><h2>玩法与王牌图鉴</h2></div><button id="rules-close" class="secondary" aria-label="关闭图鉴">关闭 ×</button></div><p>双方共用一副不重复的数字牌（默认 1–11），各持一张暗牌和一张明牌。抽牌或停牌后轮到对手；使用和丢弃王牌不交接行动。双方停牌后比较与目标的距离，输家失去生命，生命耗尽则整场结束。</p><p>王牌可能改变目标、赌注、手牌或封锁操作。无效条件下使用仍可能消耗卡牌，与 Noir 原版一致。计时开启时，首次准备与行动分别计时；断线时暂停，60 秒内可刷新重连。图鉴以当前房间启用状态为准。</p><label for="catalog-search">查找王牌</label><input id="catalog-search" type="search" placeholder="名称或效果"><div id="catalog" class="catalog"></div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <dialog id="confirm-dialog"><p class="eyebrow">YOUR NEXT MOVE</p><h2 id="confirm-title"></h2><p id="confirm-copy"></p><div class="confirm-actions"><button id="confirm-cancel" class="secondary">留在牌桌</button><button id="confirm-ok" class="primary">确认</button></div></dialog>
+</body>
+</html>
