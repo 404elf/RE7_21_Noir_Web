@@ -318,7 +318,7 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('#turn-hint')).to_contain_text('本场结束')
             expect(a.locator('#stay')).to_be_disabled()
             a.locator('#rematch').click()
-            b.wait_for_function('window.uiWire.rematches[1] === true')
+            b.wait_for_function('() => window.uiWire.rematches[1] === true')
             b.locator('#rematch').click()
             expect(a.locator('#rematch')).to_be_hidden()
             expect(a.locator('#game')).to_be_visible()
