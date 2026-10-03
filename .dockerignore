@@ -6,6 +6,8 @@
 !cards.py
 !presentation_rules.py
 !rules.py
+!bot.py
+!tactics.py
 !config.json
 !timer.json
 !LICENSE
