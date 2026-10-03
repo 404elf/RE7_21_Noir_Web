@@ -38,6 +38,7 @@
           <input id="nickname" autocomplete="nickname" maxlength="20" placeholder="例如：无名旅人" value="无名旅人">
           <div class="entry-settings"><div><span class="eyebrow">YOUR HOUSE RULES</span><p id="new-settings-summary">正在载入玩法…</p></div><button id="customize-room" class="secondary" disabled>自定义玩法 ↗</button></div>
           <button id="create-room" class="primary wide" disabled>创建房间 <span>→</span></button>
+          <button id="solo-open" class="secondary wide" disabled>人机对战 →</button>
           <div class="divider"><span>或加入朋友的牌局</span></div>
           <form id="join-form">
             <label for="room-code">房间码</label>
@@ -58,14 +59,21 @@
         <div id="game" class="game-layout" hidden>
           <div class="play-area">
             <div class="table panel" id="play-drop" data-drop="play">
-              <div class="table-header"><div class="table-top"><span id="round-label" class="eyebrow"></span><span id="deck-label" class="muted"></span></div><section class="table-center"><div class="target-seal"><span>目标</span><strong id="target">21</strong></div><div class="target-note"><span id="stake-label"></span></div></section></div>
+              <div class="table-header"><div class="table-top"><span id="round-label" class="eyebrow"></span></div><span id="board-turn"></span></div>
               <section id="opponent" class="player opponent" aria-label="对手牌区"></section>
-              <div class="field-effects"><div><small>对手场牌</small><div id="opponent-effects" class="effects" aria-label="对手场上王牌"></div></div><div><small>我的场牌</small><div id="my-effects" class="effects" aria-label="我的场上王牌"></div></div></div>
-              <div class="mine-zone"><section id="my-player" class="player mine" aria-label="我的牌区"></section><section class="turn-actions"><p id="turn-hint" role="status" aria-live="polite"></p><div><button id="hit" class="primary">抽牌 <kbd>H</kbd></button><button id="stay" class="secondary">停牌 <kbd>S</kbd></button><details id="match-menu"><summary aria-label="更多对局操作">更多 ⋯</summary><div><button id="offer-draw" class="secondary">提出求和</button><button id="surrender" class="danger text-button">投降</button></div></details></div></section><section id="result-panel" class="result-panel" hidden><h2 id="result-title"></h2><p id="result-text"></p><button id="rematch" class="primary" hidden>再来一场</button></section></div>
+              <div class="field-effects"><strong>场上王牌</strong><div><small>对手</small><div id="opponent-effects" class="effects" aria-label="对手场上王牌"></div></div><div><small>你</small><div id="my-effects" class="effects" aria-label="我的场上王牌"></div></div></div>
+              <section id="my-player" class="player mine" aria-label="我的牌区"></section>
+              <p id="latest-action" class="latest-action" aria-live="polite"></p>
             </div>
             <section class="trump-panel panel"><div class="section-heading"><h2>我的王牌 <small id="trump-count"></small></h2><span id="gesture-hint" class="muted" aria-live="polite">上拉出牌 · 右拉弃牌 · 点选查看</span><div class="hand-pages"><button id="hand-prev" class="secondary" aria-label="上一页王牌">‹</button><span id="hand-page"></span><button id="hand-next" class="secondary" aria-label="下一页王牌">›</button></div></div><div id="trump-hand" class="trump-hand"></div></section>
           </div>
-          <section class="trump-detail" aria-label="王牌详情" hidden><div class="detail-heading"><strong id="selected-title"></strong><button id="detail-close" class="text-button" aria-label="收起王牌详情">×</button></div><p id="selected-description"></p><div id="discard-drop" data-drop="discard"><button id="use-trump" class="primary" disabled>使用 ↑</button><button id="discard-trump" class="secondary" disabled>弃牌 →</button></div></section>
+          <aside class="game-console" aria-label="牌局操作">
+            <section class="table-center"><div class="target-seal"><span>本局目标</span><strong id="target">21</strong></div><div class="target-note"><span id="deck-label"></span><strong id="stake-label"></strong></div></section>
+            <section class="turn-actions"><p id="turn-hint" role="status" aria-live="polite"></p><div><button id="hit" class="primary">抽牌 <kbd>H</kbd></button><button id="stay" class="secondary">停牌 <kbd>S</kbd></button></div><small>双停结算 · 王牌不结束行动</small></section>
+            <section id="result-panel" class="result-panel" hidden><h2 id="result-title"></h2><p id="result-text"></p><button id="rematch" class="primary" hidden>再来一场</button></section>
+            <section class="trump-detail" aria-label="王牌详情" hidden><div class="detail-heading"><strong id="selected-title"></strong><button id="detail-close" class="text-button" aria-label="收起王牌详情">×</button></div><p id="selected-description"></p><div id="discard-drop" data-drop="discard"><button id="use-trump" class="primary" disabled>使用 ↑</button><button id="discard-trump" class="secondary" disabled>弃牌 →</button></div></section>
+            <details id="match-menu"><summary aria-label="更多对局操作">更多对局操作</summary><div><button id="offer-draw" class="secondary">提出求和</button><button id="surrender" class="danger text-button">投降</button></div></details>
+          </aside>
           <section class="match-options"><div id="draw-request" hidden><p id="draw-request-text"></p><button id="accept-draw" class="secondary">接受求和</button><button id="decline-draw" class="text-button">拒绝</button></div></section>
         </div>
       </section>
@@ -74,6 +82,7 @@
   </div>
   <dialog id="rules-dialog"><div class="dialog-heading"><div><p class="eyebrow">KNOW YOUR CARDS</p><h2>玩法与王牌图鉴</h2></div><button id="rules-close" class="secondary" aria-label="关闭图鉴">关闭 ×</button></div><p>双方共用一副不重复的数字牌（默认 1–11），各持一张暗牌和一张明牌。抽牌或停牌后轮到对手；使用和丢弃王牌不交接行动。双方停牌后比较与目标的距离，输家失去生命，生命耗尽则整场结束。</p><p>王牌可能改变目标、赌注、手牌或封锁操作。无效条件下使用仍可能消耗卡牌，与 Noir 原版一致。计时开启时，首次准备与行动分别计时；断线时暂停，60 秒内可刷新重连。图鉴以当前房间启用状态为准。</p><label for="catalog-search">查找王牌</label><input id="catalog-search" type="search" placeholder="名称或效果"><div id="catalog" class="catalog"></div></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
+  <dialog id="solo-dialog" aria-labelledby="solo-title"><div class="dialog-heading"><h2 id="solo-title">人机对战</h2><button id="solo-close" class="secondary">关闭 ×</button></div><p class="muted">原版 AI 策略。对手只知道自己的牌和公开信息。</p><label for="ai-difficulty">难度<select id="ai-difficulty"></select></label><p id="ai-difficulty-note" class="muted"></p><label for="ai-style">风格<select id="ai-style"></select></label><p id="ai-style-note" class="muted"></p><p id="solo-settings" class="muted"></p><button id="solo-start" class="primary wide">入座 · 人机对战 →</button></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title">
     <div class="dialog-heading"><div><p class="eyebrow">MAKE YOUR OWN RULES</p><h2 id="settings-title">打造你的牌局</h2></div><button id="settings-close" class="secondary" type="button">关闭 ×</button></div>
     <p id="settings-intro" class="muted"></p>

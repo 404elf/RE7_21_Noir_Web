@@ -1,5 +1,8 @@
 """Authoritative browser rooms. All engine mutations run synchronously on one loop."""
 import asyncio
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
+import logging
 import copy
 from collections import deque
 from dataclasses import dataclass, field
@@ -11,6 +14,8 @@ from starlette.websockets import WebSocketDisconnect
 from match import Match
 from rules import rules_active
 from web.protocol import make_patch
+from bot import Strategy, observe, DIFFICULTIES, STYLES
+from web.ai import choose
 from web.latency import LagMeter, MAX_MOVE_CREDIT, TURN_CREDIT_BUDGET
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -28,6 +33,7 @@ class Seat:
     token: str = field(default_factory=lambda: secrets.token_urlsafe(32))
     socket: object = None
     ready: bool = False
+    bot: bool = False
     send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     view: dict = None
     clock_sent: float = 0
@@ -41,7 +47,7 @@ class Seat:
 
 
 class Room:
-    def __init__(self, code, name, rules, timer, *, grace=60, clock=time.monotonic):
+    def __init__(self, code, name, rules, timer, *, grace=60, clock=time.monotonic, ai=None):
         self.code = code
         self.rules, self.timer = copy.deepcopy(rules), copy.deepcopy(timer)
         self.clock, self.grace = clock, grace
@@ -53,6 +59,17 @@ class Room:
         self.closed = False
         self.task = None
         self.notifications = {}
+        self.ai = ai
+        self.bot_task = None
+        self.bot_key = None
+        self.bot_extra = 0
+        self.bot_at = 0
+        if ai:
+            self.strategy = Strategy(**ai)
+            label = f"AI · {DIFFICULTIES[ai['difficulty']][0]}"
+            if ai['difficulty'] != 'nightmare':
+                label += f" · {STYLES[ai['style']][0]}"
+            self.seats[2] = Seat(label, ready=True, bot=True)
 
     def changed(self):
         self.revision += 1
@@ -60,13 +77,13 @@ class Room:
 
     @property
     def connected(self):
-        return sum(s.socket is not None for s in self.seats.values())
+        return sum(s.socket is not None or s.bot for s in self.seats.values())
 
     def identify(self, token):
         if not isinstance(token, str) or not token.isascii() or len(token) > 100:
             raise RoomError("房间凭证无效，请重新建房或加入。")
         for pid, seat in self.seats.items():
-            if secrets.compare_digest(seat.token, token):
+            if not seat.bot and secrets.compare_digest(seat.token, token):
                 return pid
         raise RoomError("房间凭证无效，请重新建房或加入。")
 
@@ -115,7 +132,7 @@ class Room:
             if gs.phase == "RESULT":
                 gs.result_timer += elapsed
             if now - self.missing_since >= self.grace:
-                present = [p for p, s in self.seats.items() if s.socket is not None]
+                present = [p for p, s in self.seats.items() if s.socket is not None or s.bot]
                 gs.phase, gs.end_reason = "GAMEOVER", "disconnect"
                 gs.round_winner = present[0] if len(present) == 1 else 0
                 gs.round_damage, gs.draw_offer = 0, 0
@@ -213,7 +230,7 @@ class Room:
             raise RoomError("房间已更新，请查看最新规则后重试。")
         self.rules, self.timer = copy.deepcopy(rules), copy.deepcopy(timer)
         for seat in self.seats.values():
-            seat.ready = False
+            seat.ready = seat.bot
         self.changed()
 
     def snapshot(self, pid):
@@ -224,7 +241,7 @@ class Room:
         players = []
         for p in (1, 2):
             seat = self.seats.get(p)
-            player = dict(id=p, name=seat.name if seat else "等待玩家", connected=bool(seat and seat.socket),
+            player = dict(id=p, name=seat.name if seat else "等待玩家", connected=bool(seat and (seat.socket or seat.bot)),
                           ready=bool(seat and seat.ready))
             if gs:
                 hand = list(getattr(gs, f"p{p}_hand"))
@@ -244,6 +261,7 @@ class Room:
                               preparation=self.match.visible_clock(self.match.preparation_remaining[p]))
             players.append(player)
         value = dict(type="state", room=self.code, revision=self.revision, pid=pid, players=players,
+                     ai=self.ai,
                      phase=gs.phase if gs else "LOBBY", paused=paused, rules=self.rules, timer=self.timer,
                      settings_locked=self.match is not None,
                      reconnect_seconds=max(0, int(self.grace - (self.clock() - self.missing_since)))
@@ -345,13 +363,16 @@ class Room:
 
 
 class RoomService:
-    def __init__(self, rules, timer, *, max_rooms=64, grace=60, lobby_ttl=300, idle_ttl=1800):
+    def __init__(self, rules, timer, *, max_rooms=64, grace=60, lobby_ttl=300, idle_ttl=1800, max_ai_rooms=8):
         self.rules, self.timer = rules, timer
         self.max_rooms, self.grace = max_rooms, grace
         self.lobby_ttl, self.idle_ttl = lobby_ttl, idle_ttl
         self.rooms = {}
         self.attempts = {}
         self.connections = 0
+        self.max_ai_rooms = max_ai_rooms
+        self.ai_slots = asyncio.Semaphore(2)
+        self.ai_pool = None
 
     def limit(self, peer):
         now = time.monotonic()
@@ -365,14 +386,16 @@ class RoomService:
             raise RoomError("请求过于频繁，请一分钟后重试。")
         times.append(now)
 
-    def create(self, name, *, rules=None, timer=None):
+    def create(self, name, *, rules=None, timer=None, ai=None):
         if len(self.rooms) >= self.max_rooms:
             raise RoomError("房间已满，请稍后重试。")
+        if ai and sum(bool(r.ai) for r in self.rooms.values()) >= self.max_ai_rooms:
+            raise RoomError("人机牌桌已满，请稍后重试或创建双人房间。")
         code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(8))
         while code in self.rooms:
             code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(8))
         room = Room(code, name, self.rules if rules is None else rules,
-                    self.timer if timer is None else timer, grace=self.grace)
+                    self.timer if timer is None else timer, grace=self.grace, ai=ai)
         self.rooms[code] = room
         room.task = asyncio.create_task(self.run(room), name=f"room-{code}")
         return room
@@ -391,11 +414,15 @@ class RoomService:
                         or not room.match and now - room.created > self.lobby_ttl):
                     break
                 room.advance()
+                self.schedule_bot(room)
                 room.notify()
                 await asyncio.sleep(.1)
         finally:
             room.closed = True
             self.rooms.pop(room.code, None)
+            if room.bot_task:
+                room.bot_task.cancel()
+                await asyncio.gather(room.bot_task, return_exceptions=True)
             await room.stop_notifications()
             for seat in room.seats.values():
                 if seat.socket:
@@ -410,3 +437,64 @@ class RoomService:
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+        if self.ai_pool:
+            self.ai_pool.shutdown(wait=False, cancel_futures=True)
+
+    def schedule_bot(self, room):
+        if not room.ai or not room.match or room.connected < 2 or room.closed:
+            return
+        gs = room.match.gs
+        action = None
+        if gs.phase == 'GAMEOVER' and gs.p1_req_rematch:
+            action = 'REMATCH'
+            room.strategy = Strategy(**room.ai)
+        elif gs.phase == 'ACTION' and gs.draw_offer == 1:
+            action = 'DRAW_ACCEPT' if gs.p2_fingers <= gs.p1_fingers else 'DRAW_DECLINE'
+        if action:
+            room.command(2, dict(type='action', action=action, revision=room.revision))
+            return
+        if gs.phase != 'ACTION' or gs.turn != 2:
+            return
+        if (room.bot_task and not room.bot_task.done()) or room.clock() < room.bot_at:
+            return
+        key = (room.match.match_id, room.match.turn_serial)
+        if key != room.bot_key:
+            room.bot_key, room.bot_extra = key, 0
+        # Freeze a public allowlist before any await or worker process.
+        with rules_active(room.rules):
+            view = observe(gs, 2)
+        room.bot_task = asyncio.create_task(self.bot_move(room, view, room.revision), name=f'ai-{room.code}')
+
+    async def bot_move(self, room, view, revision):
+        async with self.ai_slots:
+            if room.closed or room.connected < 2 or room.revision != revision:
+                return
+            if self.ai_pool is None:
+                self.ai_pool = ProcessPoolExecutor(max_workers=2, mp_context=multiprocessing.get_context('spawn'))
+            future = asyncio.get_running_loop().run_in_executor(self.ai_pool, choose, room.strategy,
+                                                                view, room.bot_extra, room.rules)
+            try:
+                action, strategy = await asyncio.shield(future)
+            except asyncio.CancelledError:
+                # Hold the slot until planning finishes: repeated room closes
+                # cannot create an unbounded executor backlog.
+                await future
+                raise
+            except Exception:
+                logging.getLogger(__name__).exception('AI decision failed; finishing its turn')
+                action, strategy = 'STAY', room.strategy
+            if room.closed or room.connected < 2 or room.revision != revision:
+                return
+            room.strategy = strategy
+            kind, _, index = action.partition(':')
+            value = dict(type='action', action=kind, revision=revision)
+            if index:
+                value['index'] = int(index)
+            try:
+                room.command(2, value)
+            except RoomError:
+                if room.match.gs.phase == 'ACTION' and room.match.gs.turn == 2:
+                    room.command(2, dict(type='action', action='STAY', revision=room.revision))
+            room.bot_extra += kind in ('TRUMP', 'DISCARD')
+            room.bot_at = room.clock() + .25
+            room.notify()

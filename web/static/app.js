@@ -50,7 +50,7 @@ function playerName(pid) { return pid === state?.pid ? '你' : state?.players.fi
 
 async function enter(path, settings = null) {
   $('home-error').textContent = '';
-  $('create-room').disabled = $('join-room').disabled = true;
+  $('create-room').disabled = $('join-room').disabled = $('solo-start').disabled = $('solo-open').disabled = true;
   try {
     const response = await fetch(new URL(path, appRoot), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: $('nickname').value.trim(), ...(settings || {}) }) });
     const data = await response.json();
@@ -61,7 +61,7 @@ async function enter(path, settings = null) {
     state = null; rendered = -1; closing = false; retry = 0;
     connect();
   } catch (error) { $('home-error').textContent = error.message; }
-  finally { $('create-room').disabled = !roomDraft; $('join-room').disabled = false; }
+  finally { $('create-room').disabled = $('solo-open').disabled = !roomDraft; $('join-room').disabled = $('solo-start').disabled = false; }
 }
 
 function connect() {
@@ -187,8 +187,10 @@ function render() {
   $('lobby').hidden = state.phase !== 'LOBBY'; $('game').hidden = state.phase === 'LOBBY';
   document.body.classList.toggle('playing', state.phase !== 'LOBBY');
   if (state.paused) $('notice').textContent = `对手连接中断，牌局与计时已暂停。剩余重连时间 ${state.reconnect_seconds} 秒。`;
-  else if (state.phase === 'LOBBY') $('notice').textContent = '把房间码或邀请链接发给朋友，双方准备后开局。';
+  else if (state.phase === 'LOBBY') $('notice').textContent = state.ai ? 'AI 已入座，确认规则并准备即可开始。' : '把房间码或邀请链接发给朋友，双方准备后开局。';
   else $('notice').textContent = '';
+  $('copy-invite').hidden = !!state.ai;
+  $('room-label').textContent = state.ai ? `人机 · ${settingsEditor.options.ai.difficulties[state.ai.difficulty][0]}` : state.room;
   if (rendered !== state.revision) {
     rendered = state.revision;
     if (state.phase === 'LOBBY') renderLobby();
@@ -198,6 +200,7 @@ function render() {
 }
 
 function renderLobby() {
+  document.querySelector('#lobby h2').textContent = state.ai ? 'AI 已就位，轮到你了。' : '等你，也等一位对手。';
   $('lobby-players').replaceChildren(...state.players.map((p) => {
     const node = element('div', null, 'lobby-seat');
     node.append(element('strong', p.name), element('span', p.ready ? '已准备' : p.connected ? '已入座 · 等待准备' : '等待连接'));
@@ -213,12 +216,13 @@ function renderPlayer(p, mine) {
   const root = $(mine ? 'my-player' : 'opponent');
   const heading = element('div', null, 'player-heading');
   const label = element('div');
-  label.append(element('span', p.name.slice(0, 1), 'avatar'), element('span', p.name, 'player-name'), element('span', mine ? 'YOU' : 'OPPONENT', 'player-tag'));
+  const name = element('span', mine ? '你' : state.ai ? 'AI 对手' : '对手', 'player-name'); name.title = p.name;
+  label.append(element('span', p.name.slice(0, 1), 'avatar'), name, element('span', mine ? 'YOU' : 'OPPONENT', 'player-tag'));
   const stats = element('div');
   stats.append(element('span', `♥ ${p.hp} / ${state.max_hp}`, 'health'));
   const vitality = element('progress', null, 'vitality'); vitality.max = state.max_hp; vitality.value = p.hp; vitality.setAttribute('aria-label', `${p.name} 生命 ${p.hp}`); stats.append(vitality);
   const clock = element('span', '', 'clock'); clock.id = `clock-${p.id}`;
-  stats.append(clock); heading.append(label, stats);
+  stats.append(clock); heading.append(label, stats, element('small', `王牌 ${p.trump_count}`, 'trump-inventory'));
   let cards = root.querySelector('.number-cards');
   if (!cards) { cards = element('div', null, 'number-cards'); root.replaceChildren(heading, cards); }
   else root.querySelector('.player-heading').replaceWith(heading);
@@ -245,9 +249,10 @@ function renderPlayer(p, mine) {
     cards.append(card);
   });
   const total = element('div', null, `total ${p.total > state.target ? 'bust' : ''}`);
-  total.append(element('strong', p.total === null ? '? + ' + p.hand.slice(1).reduce((a, b) => a + b, 0) : String(p.total)), element('small', p.total === null ? `明牌点数 · 王牌 ${p.trump_count}` : p.total > state.target ? '已爆牌 · 可用王牌自救' : `总点数 · 王牌 ${p.trump_count}`));
+  total.append(element('strong', p.total === null ? '? + ' + p.hand.slice(1).reduce((a, b) => a + b, 0) : String(p.total)), element('small', p.total === null ? '明牌点数' : p.total > state.target ? '已爆牌' : '当前点数'));
   oldCards.forEach((card) => card.remove()); cards.querySelector('.total')?.remove();
-  cards.append(total); added.forEach((card) => deal(card));
+  root.querySelector(':scope > .total')?.remove(); root.append(total);
+  added.forEach((card) => deal(card));
 }
 
 function renderGame() {
@@ -259,16 +264,18 @@ function renderGame() {
   for (const mine of [true, false]) {
     const effects = state.active_trumps.filter((t) => (t.owner === state.pid) === mine).map((t) => {
       const info = cardInfo(t.name);
-      const node = element('button', info.title + (t.counter === undefined ? '' : ` ${t.counter}/${t.val}`), `effect ${info.category}`);
+      const node = element('button', null, `effect ${info.category}`);
+      node.append(element('small', mine ? '你的' : '对手'), element('strong', info.title + (t.counter === undefined ? '' : ` ${t.counter}/${t.val}`)));
       node.title = info.description;
       node.dataset.name = t.name;
       node.onclick = () => { selectTrump(null); inspectedEffect = t.name; detailAnchor = node; updateTrumpDetail(); };
       return node;
     });
     const container = $(mine ? 'my-effects' : 'opponent-effects');
-    container.replaceChildren(...effects); container.parentElement.hidden = !effects.length;
+    container.replaceChildren(...effects);
+    if (!effects.length) container.append(element('span', '暂无场牌', 'empty-effects'));
   }
-  document.querySelector('.field-effects').hidden = !state.active_trumps.length;
+  document.querySelector('.field-effects').hidden = false;
   if (inspectedEffect && !state.active_trumps.some((t) => t.name === inspectedEffect)) inspectedEffect = null;
   const cards = myPlayer().trumps;
   const pageSize = innerWidth <= 760 ? 3 : 6;
@@ -295,6 +302,8 @@ function renderGame() {
   $('gesture-hint').hidden = !cards.length;
   updateTrumpDetail();
   renderResult();
+  const latest = [...state.events].reverse().find((e) => e.round === state.round && ['hit', 'stay', 'trump', 'discard', 'timeout'].includes(e.event));
+  $('latest-action').textContent = latest ? `最近：${eventText(latest)}` : '第一张牌仅你可见';
   $('events').replaceChildren(...state.events.slice(-16).reverse().map((event) => {
     const node = element('li'); node.append(element('small', `R${event.round}`), document.createTextNode(eventText(event))); return node;
   }));
@@ -322,12 +331,16 @@ function updateTrumpDetail() {
   $('selected-title').textContent = info.title;
   $('selected-description').textContent = info.description;
   $('discard-drop').hidden = selected === null;
+  if (innerWidth > 760 && innerHeight > 520) { panel.style.left = panel.style.top = ''; return; }
   detailAnchor = selected === null ? document.querySelector(`.effect[data-name="${name}"]`) : $('trump-hand').querySelector(`[data-index="${selected}"]`);
   if (!detailAnchor) { panel.hidden = true; return; }
   const anchor = detailAnchor.getBoundingClientRect();
   const box = panel.getBoundingClientRect();
-  panel.style.left = `${Math.max(8, Math.min(innerWidth - box.width - 8, anchor.left))}px`;
-  panel.style.top = `${Math.max(8, Math.min(innerHeight - box.height - 8, anchor.top - box.height - 8))}px`;
+  const left = Math.max(8, Math.min(innerWidth - box.width - 8, anchor.left));
+  let top = Math.max(8, Math.min(innerHeight - box.height - 8, anchor.top - box.height - 8));
+  const controls = document.querySelector(state.phase === 'ACTION' ? '.turn-actions' : '#result-panel').getBoundingClientRect();
+  if (left < controls.right && left + box.width > controls.left && top + box.height > controls.top && top < controls.bottom) top = Math.max(8, controls.top - box.height - 8);
+  panel.style.left = `${left}px`; panel.style.top = `${top}px`;
 }
 
 function eventText(event) {
@@ -358,6 +371,7 @@ function renderResult() {
   const over = state.phase === 'GAMEOVER';
   $('result-title').textContent = result.winner === 0 ? '平局。' : result.winner === state.pid ? (over ? '你赢得了本场。' : '这一手，你赢了。') : (over ? '本场落败。' : '这一手，对手胜。');
   const reasons = { surrender: '玩家投降', agreement: '双方同意平局', timeout: '整场计时耗尽', preparation_timeout: '首次准备超时', disconnect: '断线超过重连宽限期' };
+  if (over && state.ai?.difficulty === 'nightmare' && result.winner) $('result-title').textContent = result.winner === state.pid ? '极难挑战 · 你活下来了。' : '极难挑战 · 本场落败。';
   $('result-text').textContent = (over && reasons[state.end_reason]) || (result.escape ? '逃脱成功，平局结束整场。' : `${current ? '本局' : `上一局（第 ${result.round} 局）`}伤害 ${result.damage}。${over ? '双方可选择再战。' : '下一局继续争夺。'}`);
   $('rematch').hidden = !over;
   $('rematch').textContent = myPlayer().rematch ? '已请求 · 等待对手' : '再来一场';
@@ -414,6 +428,7 @@ function updateControls() {
   });
   $('my-player').dataset.pendingAction = pending?.action || '';
   document.querySelector('.table').classList.toggle('my-turn', Boolean(turn));
+  $('board-turn').textContent = state?.phase === 'ACTION' ? (state.turn === state.pid ? '你的行动' : '对手的行动') : '';
 }
 
 function renderCatalog() {
@@ -426,6 +441,9 @@ function renderCatalog() {
 }
 
 $('create-room').onclick = () => enter('api/rooms', roomDraft);
+$('solo-open').onclick = () => { $('solo-settings').textContent = settingsSummary(roomDraft); $('solo-dialog').showModal(); };
+$('solo-close').onclick = () => $('solo-dialog').close();
+$('solo-start').onclick = () => { $('solo-dialog').close(); enter('api/rooms', { ...roomDraft, ai: { difficulty: $('ai-difficulty').value, style: $('ai-style').value } }); };
 $('customize-room').onclick = () => settingsEditor.open(roomDraft, { save(value) {
   roomDraft = value; $('new-settings-summary').textContent = settingsSummary(value);
 } });
@@ -550,8 +568,24 @@ async function init() {
   try {
     if (!Object.keys(catalog).length) throw new Error('设置加载失败，请刷新后重试。');
     roomDraft = await settingsEditor.init(catalog);
+    for (const [kind, options] of Object.entries({ difficulty: settingsEditor.options.ai.difficulties, style: settingsEditor.options.ai.styles })) {
+      const select = $(`ai-${kind}`);
+      select.replaceChildren(...Object.entries(options).map(([key, row]) => { const option = element('option', row[0]); option.value = key; return option; }));
+      select.value = kind === 'difficulty' ? 'normal' : 'swing';
+      select.onchange = () => { $(`ai-${kind}-note`).textContent = options[select.value][2]; };
+      select.onchange();
+    }
+    const difficultyNote = $('ai-difficulty').onchange;
+    const styleNote = $('ai-style').onchange;
+    const refreshAI = () => {
+      difficultyNote(); styleNote();
+      $('ai-style').disabled = $('ai-difficulty').value === 'nightmare';
+      if ($('ai-style').disabled) $('ai-style-note').textContent = '极难模式不区分打法，与原版一致。';
+    };
+    $('ai-difficulty').onchange = $('ai-style').onchange = refreshAI;
+    refreshAI();
     $('new-settings-summary').textContent = settingsSummary(roomDraft);
-    $('customize-room').disabled = $('create-room').disabled = false;
+    $('customize-room').disabled = $('create-room').disabled = $('solo-open').disabled = false;
   } catch (error) { $('home-error').textContent = error.message; }
   try { const saved = JSON.parse(storageRead(seatKey)); if (saved && typeof saved.token === 'string' && /^[A-Z2-9]{8}$/.test(saved.room)) { seat = saved; connect(); } }
   catch { saveSeat(null); }

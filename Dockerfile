@@ -3,7 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY requirements-web.txt ./
 RUN pip install --no-cache-dir -r requirements-web.txt
-COPY app_paths.py re7_21.py match.py cards.py presentation_rules.py rules.py ./
+COPY app_paths.py re7_21.py match.py cards.py presentation_rules.py rules.py bot.py tactics.py ./
 COPY config.json timer.json LICENSE ./
 COPY presets ./presets
 COPY web ./web

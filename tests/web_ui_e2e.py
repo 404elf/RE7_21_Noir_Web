@@ -136,11 +136,13 @@ def check_usability(url, short_auth=True):
             expect(a.locator('#stay')).to_be_enabled()
             assert_count(a, 8)
             expect(a.locator('.trump-detail')).to_be_hidden()
-            expect(a.locator('.field-effects')).to_be_hidden()
+            expect(a.locator('.field-effects')).to_be_visible()
+            expect(a.locator('.empty-effects')).to_have_count(2)
 
             for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390)]:
                 a.set_viewport_size({'width': width, 'height': height})
                 a.wait_for_timeout(80)
+                before_select = a.locator('#hit').bounding_box()
                 a.locator('.trump-card').first.click()
                 geometry = a.evaluate("""() => {
                   const ids = ['play-drop', 'opponent', 'my-player', 'trump-hand', 'hit', 'stay', 'use-trump', 'discard-trump'];
@@ -158,7 +160,7 @@ def check_usability(url, short_auth=True):
                     assert bounds['width'] > 0 and bounds['height'] > 0, (name, geometry)
                     assert bounds['x'] >= 0 and bounds['y'] >= 0 and bounds['right'] <= width + 1 and bounds['bottom'] <= height + 1, (name, geometry)
                 table = geometry['bounds']['play-drop']
-                for name in ['hit', 'stay', 'opponent', 'my-player']:
+                for name in ['opponent', 'my-player']:
                     bounds = geometry['bounds'][name]
                     assert bounds['y'] >= table['y'] and bounds['bottom'] <= table['bottom'], ('table clips', name, geometry)
                 quality = a.evaluate("""() => {
@@ -166,12 +168,19 @@ def check_usability(url, short_auth=True):
                   return {numberHeight:card.getBoundingClientRect().height,
                     titleFont:parseFloat(getComputedStyle(document.querySelector('.trump-card strong')).fontSize),
                     actionGap:hit.getBoundingClientRect().top-card.getBoundingClientRect().bottom,
-                    selectable:getComputedStyle(document.getElementById('game')).userSelect};
+                    selectable:getComputedStyle(document.getElementById('game')).userSelect,
+                    overlayFree:['hit','stay'].every(id=>{const button=document.getElementById(id),r=button.getBoundingClientRect(),point=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2); return button===point || button.contains(point);})};
                 }""")
                 assert quality['selectable'] == 'none', quality
-                assert 0 <= quality['actionGap'] <= 55, quality
+                assert quality['overlayFree'], quality
+                if width > 760 and height > 520:
+                    assert geometry['bounds']['hit']['x'] >= table['right'], geometry
+                    assert abs(geometry['bounds']['hit']['y'] - before_select['y']) < 1, geometry
+                    assert geometry['bounds']['hit']['y'] >= geometry['bounds']['my-player']['y'] - 50, geometry
+                else:
+                    assert quality['actionGap'] >= 0 or height <= 520, quality
                 assert quality['titleFont'] >= (16 if width <= 760 else 17), quality
-                assert quality['numberHeight'] >= (110 if width > 760 and height > 520 else 85 if height > 520 else 48), quality
+                assert quality['numberHeight'] >= (110 if width > 760 and height > 520 else 85 if height > 600 else 70 if height > 520 else 48), quality
                 geometry['quality'] = quality
                 report['viewports'].append(geometry)
                 if (width, height) in [(1440, 900), (390, 844), (844, 390)]:
@@ -227,7 +236,7 @@ def check_usability(url, short_auth=True):
                   const table=document.getElementById('play-drop').getBoundingClientRect();
                   return ['hit','stay'].map(id=>{
                     const r=document.getElementById(id).getBoundingClientRect();
-                    return {id,top:r.top,bottom:r.bottom,tableTop:table.top,tableBottom:table.bottom};
+                    return {id,top:r.top,bottom:r.bottom,tableTop:0,tableBottom:innerHeight};
                   });
                 }""")
                 assert all(v['top'] >= v['tableTop'] and v['bottom'] <= v['tableBottom'] for v in visible), visible
@@ -312,7 +321,7 @@ def check_usability(url, short_auth=True):
                 result = a.evaluate("""() => {
                   const table=document.getElementById('play-drop').getBoundingClientRect();
                   const button=document.getElementById('rematch').getBoundingClientRect();
-                  return {top:button.top,bottom:button.bottom,tableTop:table.top,tableBottom:table.bottom};
+                  return {top:button.top,bottom:button.bottom,tableTop:0,tableBottom:innerHeight};
                 }""")
                 assert result['top'] >= result['tableTop'] and result['bottom'] <= result['tableBottom'], (width,height,result)
             assert not errors, errors

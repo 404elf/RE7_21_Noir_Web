@@ -1,96 +1,107 @@
-/* Cards, decisions and controls share one field of view. */
-body.playing { height:100dvh; overflow:hidden; --number-height:clamp(48px,calc((100dvh - 400px)/2.8),180px) }
-body.playing .app-shell { width:calc(100% - 32px); max-width:1240px; height:100%; display:flex; flex-direction:column }
-body.playing .masthead { height:52px; min-height:52px; border:0 }
-body.playing .wordmark { font-size:19px }
+/* Original Noir table: opponent / field / player, hand below, decisions at right. */
+body.playing { height:100dvh; overflow:hidden; --number-height:clamp(100px,16dvh,154px) }
+body.playing .app-shell { width:calc(100% - 32px); max-width:1440px; height:min(100%,850px); display:flex; flex-direction:column }
+body.playing .masthead { height:50px; min-height:50px; border:0 }
+body.playing .wordmark { font-size:20px }
 body.playing .wordmark b { font-size:32px }
 body.playing main { flex:1; min-height:0 }
 body.playing #room { height:100%; display:flex; flex-direction:column }
 body.playing footer { display:none }
-body.playing .room-heading { margin:3px 0 6px; gap:12px; flex:none }
+body.playing .room-heading { flex:none; margin:4px 0 8px; gap:12px }
 body.playing .room-heading .eyebrow { display:none }
 body.playing .room-heading h1 { font-size:20px }
 body.playing .room-links { gap:6px }
 body.playing .room-links button { min-height:36px; padding:6px 10px; font-size:12px }
 body.playing .notice { flex:none; margin:0 0 6px; min-height:0; line-height:1.4; font-size:13px }
 body.playing .notice:empty { display:none }
-body.playing #game { flex:1; min-height:0; display:flex; flex-direction:column; padding-bottom:max(10px,env(safe-area-inset-bottom)); user-select:none; -webkit-user-select:none }
-body.playing .play-area { flex:1; min-height:0; display:flex; flex-direction:column; gap:8px }
+body.playing #game { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:18px; padding-bottom:max(10px,env(safe-area-inset-bottom)); user-select:none; -webkit-user-select:none }
+body.playing .play-area { min-height:0; display:grid; grid-template-rows:minmax(0,1fr) auto; gap:12px }
 body.playing .panel { border:0; box-shadow:none }
-body.playing .table { flex:1; min-height:0; padding:10px 20px; display:flex; flex-direction:column; gap:8px; background:linear-gradient(125deg,#292218e8,#191510ed) }
+body.playing .table { min-height:0; padding:14px 20px; display:grid; grid-template-rows:24px minmax(0,1fr) 100px minmax(0,1fr) 24px; gap:8px; background:linear-gradient(125deg,#292218e8,#191510ed) }
 body.playing .table:before { display:none }
-body.playing .table-header { flex:none; display:flex; align-items:center; justify-content:space-between; gap:12px }
-body.playing .table-top { display:flex; flex-direction:column; gap:4px; margin:0; font-size:12px }
-body.playing .table-top .eyebrow { font-size:11px; margin:0 }
-body.playing #deck-label { font-size:12px; letter-spacing:0; color:var(--muted) }
-body.playing .table-center { min-height:0; padding:0; margin:0; gap:14px; border:0; background:none }
-body.playing .target-seal { height:auto; width:auto; min-width:0; display:flex; flex-direction:row; gap:8px; border:0; border-radius:0; box-shadow:none }
-body.playing .target-seal:before { display:none }
-body.playing .target-seal>span { font-size:12px; letter-spacing:0 }
-body.playing .target-seal strong { font-size:38px; line-height:1 }
-body.playing .target-note { font-size:13px; color:var(--muted) }
-body.playing .player { min-height:0; padding:6px 0; display:flex; align-items:center; justify-content:center; gap:20px }
-body.playing #opponent { flex:1 }
-body.playing .mine-zone { flex:none; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:8px }
-body.playing #my-player { flex:none }
-body.playing .player-heading { width:124px; flex:none; margin:0; display:block; min-width:0 }
-body.playing .player-heading>div { display:flex; flex-wrap:wrap; gap:7px; margin:7px 0 }
+body.playing .table-header { display:flex; align-items:center; justify-content:space-between; color:var(--gold); font-size:15px }
+body.playing .table-top { margin:0 }
+body.playing .table-top .eyebrow { font-size:12px; margin:0 }
+body.playing .player { min-height:0; padding:0; display:grid; grid-template-columns:140px minmax(0,1fr) 112px; align-items:center; gap:16px }
+body.playing .player-heading { margin:0; display:block; min-width:0 }
+body.playing .player-heading>div { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 }
 body.playing .avatar,body.playing .player-tag { display:none }
-body.playing .player-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:15px }
-body.playing .health { font-size:14px }
+body.playing .player-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:18px; font-weight:600 }
+body.playing .health { font-size:16px }
+body.playing .trump-inventory { display:block; color:var(--muted); font-size:13px }
 body.playing .vitality { width:100%; height:7px; order:1 }
-body.playing .number-cards { min-width:0; max-width:calc(100% - 144px); min-height:0; display:flex; flex-wrap:nowrap; gap:10px; padding:6px 2px; overflow-x:auto; scrollbar-width:thin }
+body.playing .clock { font-size:20px; margin:0 }
+body.playing .number-cards { min-width:0; min-height:0; display:flex; flex-wrap:nowrap; gap:10px; padding:8px 2px; overflow-x:auto; scrollbar-width:thin }
 body.playing .number-card { flex:none; width:calc(var(--number-height)*.7); height:var(--number-height); container-type:inline-size }
-body.playing .card-number { font-size:clamp(25px,53cqw,68px); line-height:1 }
+body.playing .card-number { font-size:clamp(28px,53cqw,68px); line-height:1 }
 body.playing .card-rank { font-size:14px; top:7px; left:8px }
 body.playing .card-rank.bottom { bottom:7px; right:8px }
 body.playing .number-inner { transition:transform .12s ease-out }
 body.playing .card-private { font-size:8px; bottom:-2px }
-body.playing .total { min-width:85px; flex:none; margin-left:10px; padding:0 4px; background:#241e16; align-self:center; position:sticky; right:0; z-index:1 }
+body.playing .total { min-width:0; margin:0; padding:0; background:none; position:static; align-self:center; text-align:right }
 body.playing .total strong { font-size:42px; line-height:1.1 }
-body.playing .total small { display:block; font-size:12px; white-space:nowrap }
-body.playing .field-effects { flex:none; display:flex; justify-content:center; gap:20px; min-width:0; max-height:78px; overflow:auto; padding:2px 0; border:0 }
-body.playing .field-effects>div { min-width:0; display:flex; align-items:center; gap:8px }
-body.playing .field-effects small { font-size:12px; white-space:nowrap; color:var(--muted) }
-body.playing .effects { gap:5px; margin:0 }
-body.playing button.effect { min-height:36px; padding:5px 10px; font-size:14px; cursor:pointer; text-align:left; background:#31291e }
-body.playing .turn-actions { flex:none; align-self:center; display:flex; align-items:center; gap:18px; margin:0; padding:0; border:0 }
-body.playing .turn-actions p { margin:0; font-size:14px; color:var(--gold) }
-body.playing .turn-actions>div { display:flex; align-items:center; gap:8px }
-body.playing .turn-actions button { min-height:44px; min-width:104px; padding:9px 16px; margin:0; font-size:16px }
-body.playing #match-menu { position:relative }
-body.playing #match-menu summary { min-height:44px; padding:11px; cursor:pointer; font-size:14px; list-style:none }
-body.playing #match-menu[open]>div { position:absolute; bottom:100%; right:0; padding:8px; background:#211b15; border:1px solid #8f714c; z-index:7; display:flex; flex-direction:column; gap:6px; box-shadow:0 6px 24px #0009 }
-body.playing .trump-panel { flex:none; min-height:0; padding:6px 0 0; background:none; margin:0 }
-body.playing .section-heading { gap:10px; min-height:30px; margin:0; flex-wrap:nowrap }
-body.playing .section-heading h2 { font-size:15px; white-space:nowrap; margin:0 }
-body.playing .section-heading h2 small { margin-left:6px; font-size:12px }
+body.playing .total small { display:block; font-size:12px; line-height:1.5 }
+body.playing .field-effects { min-width:0; padding:0; border:0; display:grid; grid-template-columns:140px minmax(0,1fr) minmax(0,1fr); align-items:center; gap:16px; overflow:hidden }
+body.playing .field-effects>strong { font-size:17px; color:var(--gold) }
+body.playing .field-effects>div { min-width:0; display:block }
+body.playing .field-effects>div>small { display:none }
+body.playing .effects { display:flex; flex-wrap:nowrap; gap:6px; margin:0; padding:4px 0; overflow-x:auto; scrollbar-width:thin }
+body.playing button.effect { flex:none; min-height:64px; width:112px; padding:8px; font-size:16px; display:flex; flex-direction:column; gap:7px; cursor:pointer; text-align:left; background:#382b1e; white-space:normal }
+body.playing button.effect small { font-size:11px; color:var(--gold) }
+body.playing #opponent-effects button.effect { background:#38211d; border-color:#964b36 }
+body.playing .empty-effects { font-size:13px; color:var(--muted) }
+body.playing .latest-action { margin:0; align-self:center; font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+body.playing .game-console { min-width:0; min-height:0; display:grid; grid-template-rows:124px minmax(0,1fr) 110px clamp(145px,24dvh,200px) 44px; gap:12px; align-items:stretch }
+body.playing .game-console>.table-center { grid-row:1 }
+body.playing .game-console>.turn-actions,body.playing .game-console>.result-panel { grid-row:3 }
+body.playing .game-console>.trump-detail { grid-row:4 }
+body.playing .game-console>#match-menu { grid-row:5; align-self:end }
+body.playing .table-center { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px; margin:0; min-height:124px; border:0; background:#241d16 }
+body.playing .target-seal { width:auto; height:auto; min-width:80px; display:block; border:0; border-radius:0; box-shadow:none }
+body.playing .target-seal:before { display:none }
+body.playing .target-seal>span { display:block; font-size:14px; letter-spacing:0; margin-bottom:4px }
+body.playing .target-seal strong { font-size:60px; line-height:1 }
+body.playing .target-note { display:flex; flex-direction:column; gap:12px; color:var(--muted); font-size:13px; line-height:1.5 }
+body.playing #stake-label { font-size:15px; color:var(--gold); font-weight:500 }
+body.playing .turn-actions { padding:0; margin:0; border:0; display:flex; flex-direction:column; align-items:stretch; gap:8px }
+body.playing .turn-actions p { margin:0; font-size:16px; color:var(--gold) }
+body.playing .turn-actions>div { display:flex; gap:8px }
+body.playing .turn-actions button { flex:1; min-width:0; min-height:50px; padding:10px; font-size:18px; margin:0 }
+body.playing .turn-actions>small { color:var(--muted); font-size:13px }
+body.playing .trump-panel { min-height:0; padding:0; margin:0; background:none }
+body.playing .section-heading { min-height:32px; margin:0 0 6px; gap:12px; flex-wrap:nowrap }
+body.playing .section-heading h2 { font-size:18px; margin:0; white-space:nowrap }
+body.playing .section-heading h2 small { font-size:13px; margin-left:6px }
 body.playing #gesture-hint { font-size:12px }
 body.playing #gesture-hint:after { content:none }
 .hand-pages { display:flex; align-items:center; gap:6px; font-size:12px; margin-left:auto; white-space:nowrap }
 .hand-pages .secondary { padding:0; width:36px; min-height:36px; font-size:22px }
 body.playing .trump-hand { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; padding:4px 0 0; min-height:0; overflow:visible; touch-action:none }
-body.playing .trump-card { width:auto; min-width:0; flex:auto; height:98px; min-height:0; padding:8px 12px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:6px; touch-action:none; background:#2a231b; border-color:#79624580; transition:transform .1s,border-color .1s }
+body.playing .trump-card { width:auto; min-width:0; height:110px; min-height:0; padding:10px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:8px; touch-action:none; background:#2a231b; border-color:#79624580; transition:transform .1s,border-color .1s }
 body.playing .trump-card:before,body.playing .trump-card:after { display:none }
 body.playing .trump-card:hover,body.playing .trump-card.selected { transform:translateY(-3px); border-color:var(--gold) }
 body.playing .trump-card .category { font-size:11px }
-body.playing .trump-card strong { font-size:20px; line-height:1.2; margin:0; font-family:var(--sans); white-space:normal }
+body.playing .trump-card strong { font-size:19px; line-height:1.2; margin:0; font-family:var(--sans); white-space:normal }
 body.playing .trump-card>small { font-size:11px; line-height:1; margin:0 }
-body.playing .trump-detail { position:fixed; z-index:8; width:min(360px,calc(100vw - 16px)); max-height:calc(100dvh - 16px); padding:12px; background:#241d16; border:1px solid #94754d; box-shadow:0 8px 30px #0009; display:flex; flex-direction:column; align-items:stretch; text-align:left; gap:10px }
-body.playing .detail-heading { display:flex; justify-content:space-between; align-items:center; gap:8px }
-body.playing .detail-heading strong { font-size:20px; line-height:1.2 }
+body.playing .trump-detail { position:static; width:auto; min-height:0; max-height:100%; padding:12px; background:#241d16; border:0; box-shadow:none; display:flex; flex-direction:column; gap:8px; text-align:left; overflow:hidden; align-self:start }
+body.playing .detail-heading { flex:none; display:flex; justify-content:space-between; align-items:center; gap:8px }
+body.playing .detail-heading strong { flex:1; width:auto; text-align:left; font-size:23px; line-height:1.3 }
 body.playing #detail-close { min-height:44px; min-width:44px; font-size:24px; padding:0; margin:-8px -6px -8px 0 }
-body.playing .trump-detail p { margin:0; max-height:150px; overflow:auto; font-size:15px; line-height:1.6 }
-body.playing #discard-drop { display:flex; width:100%; gap:8px }
-body.playing #discard-drop button { flex:1; min-height:44px; padding:9px; margin:0; font-size:15px }
-body.playing .result-panel { align-self:center; width:min(100%,530px); padding:6px; text-align:center; background:none; border:0; flex:none }
-body.playing .result-panel h2 { margin:0; font-size:25px }
-body.playing .result-panel p { margin:4px 0; font-size:13px }
-body.playing #rematch { margin:4px 0 0; min-height:44px }
-body.playing .match-options { flex:none }
-body.playing #draw-request { display:flex; align-items:center; justify-content:center; gap:8px; padding:8px; background:#35251d; font-size:14px }
+body.playing .trump-detail p { flex:0 1 auto; min-height:0; margin:0; max-height:180px; overflow:auto; font-size:17px; line-height:1.7 }
+body.playing #discard-drop { flex:none; display:flex; gap:8px; width:100% }
+body.playing #discard-drop button { flex:1; min-height:44px; padding:9px; font-size:16px; margin:0 }
+body.playing .result-panel { padding:12px; margin:0; width:auto; text-align:left; background:#241d16; border:0 }
+body.playing .result-panel h2 { font-size:25px; margin:0 }
+body.playing .result-panel p { font-size:14px; margin:8px 0 }
+body.playing #rematch { min-height:44px; margin:0 }
+body.playing #match-menu { position:relative }
+body.playing #match-menu summary { min-height:44px; padding:12px 0; cursor:pointer; font-size:14px; color:var(--muted); list-style:none }
+body.playing #match-menu[open]>div { position:absolute; top:100%; right:0; padding:8px; background:#211b15; border:1px solid #8f714c; z-index:7; display:flex; flex-direction:column; gap:6px; box-shadow:0 6px 24px #0009 }
+body.playing #match-menu button { min-height:44px; margin:0 }
+body.playing .match-options { grid-column:1/-1 }
+body.playing #draw-request { display:flex; align-items:center; gap:8px; padding:8px; background:#35251d; font-size:14px }
 body.playing #draw-request p { margin:0 }
-body.playing #draw-request button { margin:0; min-height:44px; padding:7px }
+body.playing #draw-request button { min-height:44px; margin:0; padding:7px }
 body.playing button[aria-busy="true"] { box-shadow:inset 0 0 0 2px var(--gold); filter:brightness(1.2); opacity:1 }
 body.playing .trump-card[data-pending-action="TRUMP"] { animation:submit-up .12s ease-out forwards }
 body.playing .trump-card[data-pending-action="DISCARD"] { animation:submit-right .12s ease-out forwards }
@@ -100,17 +111,22 @@ body.dragging #gesture-hint { color:var(--gold) }
 body.playing .drag-ghost { width:120px; height:98px; min-height:98px; pointer-events:none; transition:none }
 #journal-dialog { width:min(600px,calc(100% - 30px)) }
 #journal-dialog #events { max-height:65dvh }
-@media (max-width:760px) {
-  body.playing { --number-height:clamp(64px,calc((100dvh - 300px)/3),112px) }
+@media (max-width:1100px) and (min-width:761px) {
+  body.playing #game { grid-template-columns:minmax(0,1fr) 248px; gap:12px }
+  body.playing .player { grid-template-columns:100px minmax(0,1fr) 85px; gap:10px }
+  body.playing .field-effects { grid-template-columns:100px minmax(0,1fr) minmax(0,1fr); gap:10px }
+}
+@media (max-width:760px), (max-height:520px) {
+  body.playing { --number-height:clamp(62px,calc((100dvh - 420px)/2),112px) }
   body.playing .app-shell { width:calc(100% - 16px) }
-  body.playing .masthead { height:42px; min-height:42px; gap:6px }
+  body.playing .masthead { height:38px; min-height:38px; gap:6px }
   body.playing .wordmark { font-size:14px; letter-spacing:2px; gap:6px }
   body.playing .wordmark b { font-size:26px }
   body.playing .wordmark i { display:none }
   body.playing .masthead nav { gap:5px }
   body.playing .connection { display:inline-block; font-size:10px; max-width:92px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   body.playing .masthead nav button { font-size:10px; padding:4px }
-  body.playing .room-heading { margin:2px 0 4px; flex-wrap:nowrap; gap:4px }
+  body.playing .room-heading { margin:0 0 4px; flex-wrap:nowrap; gap:4px }
   body.playing .room-heading h1 { font-size:13px; white-space:nowrap }
   body.playing #room-label { font-size:12px; margin-left:4px; letter-spacing:1px }
   body.playing .room-heading h1 span { display:inline }
@@ -118,41 +134,48 @@ body.playing .drag-ghost { width:120px; height:98px; min-height:98px; pointer-ev
   body.playing .room-links button { font-size:11px; padding:4px 5px; min-height:30px }
   body.playing #room-settings,body.playing #copy-invite { display:none }
   body.playing .notice { font-size:12px }
-  body.playing #game { padding-bottom:max(6px,env(safe-area-inset-bottom)) }
-  body.playing .play-area { gap:5px }
-  body.playing .table { padding:6px 8px; gap:5px }
-  body.playing .table-header { gap:5px }
-  body.playing .table-top { font-size:11px; gap:2px }
+  body.playing #game { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:44px minmax(0,1fr) 60px auto; grid-template-areas:"info" "table" "actions" "hand"; gap:5px; padding-bottom:max(6px,env(safe-area-inset-bottom)) }
+  body.playing .play-area,body.playing .game-console { display:contents }
+  body.playing .table { grid-area:table; padding:5px 6px; gap:3px; grid-template-rows:16px minmax(0,1fr) 44px minmax(0,1fr) 14px }
+  body.playing .table-header { font-size:12px }
   body.playing .table-top .eyebrow { font-size:10px }
-  body.playing .table-center { gap:8px }
-  body.playing .target-seal { gap:5px }
-  body.playing .target-seal>span { font-size:11px }
-  body.playing .target-seal strong { font-size:32px }
-  body.playing .target-note { font-size:11px; max-width:96px; line-height:1.4 }
-  body.playing .player { gap:8px; padding:4px 0 }
-  body.playing .player-heading { width:64px }
-  body.playing .player-heading>div { margin:4px 0; gap:4px }
+  body.playing .table-center { grid-area:info; min-height:0; padding:4px 6px; gap:8px }
+  body.playing .target-seal { min-width:60px }
+  body.playing .target-seal>span { font-size:11px; margin:0 }
+  body.playing .target-seal strong { font-size:36px }
+  body.playing .target-note { font-size:12px; gap:2px; flex:1 }
+  body.playing #stake-label { font-size:13px }
+  body.playing .player { grid-template-columns:64px minmax(0,1fr) 58px; gap:6px }
+  body.playing .player-heading>div { margin:3px 0; gap:3px }
   body.playing .player-name,body.playing .health { font-size:12px }
+  body.playing .trump-inventory { font-size:10px }
   body.playing .vitality { height:5px }
-  body.playing .number-cards { max-width:calc(100% - 72px); gap:6px; padding:4px 1px }
+  body.playing .clock { font-size:14px }
+  body.playing .number-cards { gap:5px; padding:3px 1px }
   body.playing .number-card { width:calc(var(--number-height)*.67) }
   body.playing .card-rank { font-size:10px; top:5px; left:6px }
   body.playing .card-rank.bottom { bottom:5px; right:6px }
   body.playing .card-private { font-size:6px }
-  body.playing .total { min-width:52px; margin-left:4px }
-  body.playing .total strong { font-size:28px }
-  body.playing .total small { font-size:10px; max-width:60px; white-space:normal }
-  body.playing .field-effects { gap:6px; max-height:76px; flex-wrap:wrap; justify-content:flex-start }
-  body.playing .field-effects>div { gap:5px }
-  body.playing .field-effects small { font-size:11px }
-  body.playing button.effect { min-height:32px; font-size:12px; padding:4px 7px }
-  body.playing .mine-zone { gap:5px }
-  body.playing .turn-actions { flex-direction:column; gap:3px; align-self:stretch }
-  body.playing .turn-actions p { font-size:13px; line-height:1.3 }
-  body.playing .turn-actions>div { justify-content:center; gap:6px }
-  body.playing .turn-actions button { min-width:90px; min-height:44px; font-size:16px; padding:8px 12px }
-  body.playing .turn-actions kbd { display:none }
-  body.playing .section-heading { gap:5px; min-height:30px }
+  body.playing .total strong { font-size:27px }
+  body.playing .opponent .total strong { font-size:clamp(17px,4.8vw,22px); white-space:nowrap }
+  body.playing .total small { font-size:9px; line-height:1.3 }
+  body.playing .field-effects { grid-template-columns:64px minmax(0,1fr) minmax(0,1fr); gap:6px }
+  body.playing .field-effects>strong { font-size:11px }
+  body.playing button.effect { min-height:44px; width:84px; padding:4px 6px; font-size:13px; gap:3px }
+  body.playing button.effect small { font-size:9px }
+  body.playing .empty-effects { font-size:10px }
+  body.playing .latest-action { font-size:10px }
+  body.playing .turn-actions { grid-area:actions; gap:3px; padding-right:44px; justify-content:center }
+  body.playing .turn-actions p { font-size:12px; line-height:1.3 }
+  body.playing .turn-actions>div { gap:6px }
+  body.playing .turn-actions button { min-height:44px; font-size:17px; padding:7px; }
+  body.playing .turn-actions kbd,body.playing .turn-actions>small { display:none }
+  body.playing #match-menu { grid-area:actions; align-self:end; justify-self:end; z-index:4 }
+  body.playing #match-menu summary { width:40px; height:44px; font-size:0; padding:8px }
+  body.playing #match-menu summary:after { content:"⋯"; font-size:22px }
+  body.playing #match-menu[open]>div { top:auto; bottom:100% }
+  body.playing .trump-panel { grid-area:hand }
+  body.playing .section-heading { min-height:28px; margin:0; gap:5px }
   body.playing .section-heading h2 { font-size:13px }
   body.playing .section-heading h2 small { font-size:11px }
   body.playing #gesture-hint { font-size:10px; max-width:104px; line-height:1.4 }
@@ -162,42 +185,34 @@ body.playing .drag-ghost { width:120px; height:98px; min-height:98px; pointer-ev
   body.playing .trump-card { height:84px; padding:7px 8px; gap:5px }
   body.playing .trump-card strong { font-size:16px }
   body.playing .trump-card .category,body.playing .trump-card>small { font-size:10px }
-  body.playing .trump-detail p { font-size:14px }
-  body.playing .result-panel h2 { font-size:20px }
-  body.playing .result-panel p { font-size:12px }
+  body.playing .game-console>.table-center { grid-area:info }
+  body.playing .game-console>.turn-actions,body.playing .game-console>.result-panel,body.playing .game-console>#match-menu { grid-area:actions }
+  body.playing .trump-detail { position:fixed; z-index:8; width:min(360px,calc(100vw - 16px)); max-height:calc(100dvh - 16px); padding:12px; border:1px solid #94754d; box-shadow:0 8px 30px #0009 }
+  body.playing .trump-detail p { flex:none }
+  body.playing .trump-detail p { max-height:130px; font-size:15px; line-height:1.6 }
+  body.playing .detail-heading strong { font-size:20px }
+  body.playing .result-panel { grid-area:actions; padding:0; display:grid; grid-template-columns:1fr auto; gap:2px 10px; align-items:center; background:none }
+  body.playing .result-panel h2 { font-size:18px; line-height:1.2 }
+  body.playing .result-panel p { font-size:11px; line-height:1.3; margin:0 }
+  body.playing #rematch { grid-column:2; grid-row:1/3; padding:8px 12px }
+  body.playing .match-options { position:fixed; left:8px; right:8px; top:74px; z-index:8 }
   body.playing #draw-request { flex-wrap:wrap; font-size:12px }
 }
 @media (max-height:520px) and (min-width:761px) {
   body.playing { --number-height:48px }
-  body.playing .masthead { height:32px; min-height:32px }
-  body.playing .room-heading { margin:0 0 2px }
-  body.playing .room-links button { min-height:28px }
-  body.playing .table { padding:4px 12px; gap:3px }
-  body.playing .table-header { position:absolute; top:4px; left:12px; right:12px; pointer-events:none }
-  body.playing .table-top { flex-direction:row }
-  body.playing .target-seal strong { font-size:26px }
-  body.playing .player-heading { width:100px }
-  body.playing .player { padding:2px 0 }
-  body.playing .player-heading>div { margin:2px 0; gap:2px; line-height:1.2 }
-  body.playing .player-name { font-size:13px }
-  body.playing .health { font-size:12px }
-  body.playing .vitality { height:5px }
-  body.playing .clock:empty { display:none }
-  body.playing .mine-zone { flex:none; gap:4px }
-  body.playing .number-cards { max-width:calc(100% - 120px); padding:0 2px }
+  body.playing .masthead { height:28px; min-height:28px }
+  body.playing .room-links button { min-height:26px }
+  body.playing #game { grid-template-columns:minmax(0,1fr) 220px; grid-template-rows:60px minmax(0,1fr) 82px; grid-template-areas:"table info" "table actions" "hand actions" }
+  body.playing .table { grid-template-rows:18px minmax(0,1fr) 44px minmax(0,1fr) 14px }
+  body.playing .player { grid-template-columns:80px minmax(0,1fr) 64px }
+  body.playing .trump-inventory { display:none }
+  body.playing .trump-hand { grid-template-columns:repeat(6,minmax(0,1fr)) }
+  body.playing .trump-card { height:42px; padding:3px 6px; gap:2px }
+  body.playing .trump-card strong { font-size:17px }
+  body.playing .trump-card .category,body.playing .trump-card>small,body.playing #gesture-hint { display:none }
+  body.playing .number-cards { padding:0 1px }
   body.playing .card-rank { font-size:8px; top:3px; left:4px }
   body.playing .card-rank.bottom { bottom:3px; right:4px }
-  body.playing .card-private { font-size:5px }
-  body.playing .total strong { font-size:26px }
-  body.playing .turn-actions { gap:10px }
-  body.playing .field-effects { max-height:36px }
-  body.playing .trump-card { height:62px; gap:3px; padding:5px 10px }
-  body.playing .trump-card strong { font-size:17px }
-  body.playing .section-heading { min-height:26px }
-  body.playing .result-panel { display:grid; grid-template-columns:1fr auto; gap:2px 12px; align-items:center; text-align:left; padding:0 }
-  body.playing .result-panel h2 { font-size:18px; line-height:1.2 }
-  body.playing .result-panel p { font-size:11px; line-height:1.3; margin:0 }
-  body.playing #rematch { grid-column:2; grid-row:1/3; margin:0; padding:8px 14px }
 }
 @media (prefers-reduced-motion:reduce) {
   body.playing .trump-card[data-pending-action] { animation:none; opacity:.35 }
