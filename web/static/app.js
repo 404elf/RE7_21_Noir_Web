@@ -188,7 +188,6 @@ function render() {
   document.body.classList.toggle('playing', state.phase !== 'LOBBY');
   if (state.paused) $('notice').textContent = `对手连接中断，牌局与计时已暂停。剩余重连时间 ${state.reconnect_seconds} 秒。`;
   else if (state.phase === 'LOBBY') $('notice').textContent = '把房间码或邀请链接发给朋友，双方准备后开局。';
-  else if (state.phase === 'GAMEOVER') $('notice').textContent = '本场结束。双方同意再战后，将开启全新一场。';
   else $('notice').textContent = '';
   if (rendered !== state.revision) {
     rendered = state.revision;
@@ -451,8 +450,9 @@ $('discard-trump').onclick = () => send('action', 'DISCARD', selected);
 $('detail-close').onclick = () => selectTrump(null);
 document.addEventListener('pointerdown', (event) => {
   if (!event.target.closest('.trump-card, .trump-detail, .effect')) selectTrump(null);
+  if (!event.target.closest('#match-menu')) $('match-menu').open = false;
 });
-$('surrender').onclick = async () => { if (await confirmMove('就此结束？', '投降将结束本场对局，对手获胜。', '确认投降')) send('action', 'SURRENDER'); };
+$('surrender').onclick = async () => { $('match-menu').open = false; if (await confirmMove('就此结束？', '投降将结束本场对局，对手获胜。', '确认投降')) send('action', 'SURRENDER'); };
 $('copy-invite').onclick = async () => {
   const link = inviteURL(state?.room || seat?.room).href;
   try { await navigator.clipboard.writeText(link); toast('邀请链接已复制'); }

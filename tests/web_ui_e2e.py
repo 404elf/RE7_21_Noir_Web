@@ -302,6 +302,19 @@ def check_usability(url, short_auth=True):
                 page.locator('#rematch').click()
             expect(a.locator('#rematch')).to_be_hidden()
             expect(a.locator('#game')).to_be_visible()
+            # Check the ending controls with a freshly replenished full hand.
+            a.locator('#match-menu summary').click()
+            a.locator('#surrender').click(); a.locator('#confirm-ok').click()
+            expect(a.locator('#rematch')).to_be_visible()
+            for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390)]:
+                a.set_viewport_size({'width': width, 'height': height})
+                a.wait_for_timeout(80)
+                result = a.evaluate("""() => {
+                  const table=document.getElementById('play-drop').getBoundingClientRect();
+                  const button=document.getElementById('rematch').getBoundingClientRect();
+                  return {top:button.top,bottom:button.bottom,tableTop:table.top,tableBottom:table.bottom};
+                }""")
+                assert result['top'] >= result['tableTop'] and result['bottom'] <= result['tableBottom'], (width,height,result)
             assert not errors, errors
             (OUT / 'web-ui-report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
             print('PASS: seven viewports, always-visible hands/actions, mouse/touch short gestures, pagination, auth recovery, delayed update recovery without replay, journal and rematch; zero browser errors')
