@@ -180,7 +180,8 @@ def create_app(*, config_path=None, timer_path=None, service_options=None, base_
             room.attach(pid, socket)
             attached = True
             seat = room.seats[pid]
-            await room.broadcast()
+            await room.deliver(pid, socket)
+            room.notify(exclude=pid)
             start, count = time.monotonic(), 0
             while not room.closed:
                 raw = await asyncio.wait_for(socket.receive_text(), HEARTBEAT_TIMEOUT)
@@ -193,20 +194,31 @@ def create_app(*, config_path=None, timer_path=None, service_options=None, base_
                 if count > 20:
                     raise RoomError("操作过于频繁。")
                 try:
+                    processing_start = time.perf_counter()
+                    action_result = None
                     data = json.loads(raw)
                     if not isinstance(data, dict):
                         raise RoomError("操作必须是对象。")
                     if data.get("type") == "ping":
-                        await seat.send(socket, {"type": "pong"})
+                        await room.ping(pid, socket, data.get('measure') is True)
+                        continue
+                    if data.get('type') == 'probe_ack':
+                        await room.probe_ack(pid, socket, data.get('probe'))
                         continue
                     if data.get("type") == "sync":
                         room.advance()
                         await room.deliver(pid, socket, force=True)
                         continue
                     room.command(pid, data)
+                    command_id = data.get('command_id')
+                    if type(command_id) is int and 0 < command_id <= 2147483647:
+                        action_result = {'command_id': command_id,
+                                         'processing_ms': round((time.perf_counter()-processing_start)*1000, 3),
+                                         'compensated_ms': round(room.match.last_lag_credit*1000, 3) if room.match else 0}
                 except (RoomError, json.JSONDecodeError) as exc:
                     await seat.send(socket, {"type": "error", "message": str(exc)[:180]})
-                await room.broadcast()
+                await room.deliver(pid, socket, action_result=action_result)
+                room.notify(exclude=pid)
         except asyncio.TimeoutError:
             try:
                 if not attached:
