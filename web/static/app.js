@@ -17,6 +17,7 @@ let pending = null, rendered = -1, reconnectTimer, heartbeat, toastTimer, cooldo
 let closing = false, retry = 0, online = false, cooldown = 0;
 let syncing = false;
 let handPage = 0, lastReceived = 0;
+let networkRTT = null, commandSequence = 0, decisionStarted = 0;
 const settingsEditor = new SettingsEditor(appRoot);
 let roomDraft = null;
 
@@ -38,7 +39,10 @@ function toast(message) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { $('toast').hidden = true; }, 5000);
 }
-function connection(text) { $('connection').textContent = text; }
+function connection(text) {
+  $('connection').textContent = text === '已连接 · 私人牌桌' && networkRTT !== null ? `已连接 · ${networkRTT}ms` : text;
+  $('connection').title = networkRTT === null ? '' : `网络往返约 ${networkRTT} 毫秒；计时补偿以服务器测量和额度为准`;
+}
 function cardInfo(name) { return catalog[name] || { title: name, description: '', category: 'control', english: name }; }
 function myPlayer() { return state?.players.find((p) => p.id === state.pid); }
 function playerName(pid) { return pid === state?.pid ? '你' : state?.players.find((p) => p.id === pid)?.name || '对手'; }
@@ -69,13 +73,15 @@ function connect() {
   const url = new URL(`ws/${encodeURIComponent(seat.room)}`, appRoot);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(url);
+  let measuredConnection = false;
   socket = ws;
+  networkRTT = null;
   ws.onopen = () => {
     if (socket !== ws) return;
     lastReceived = performance.now();
     ws.send(JSON.stringify({ type: 'auth', token: seat.token }));
     clearInterval(heartbeat);
-    heartbeat = setInterval(() => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' })); }, 10000);
+    heartbeat = setInterval(() => { if (online && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping', measure: true })); }, 10000);
   };
   ws.onmessage = (event) => {
     if (socket !== ws) return;
@@ -89,14 +95,30 @@ function connect() {
         syncing = true; updateControls(); return;
       }
       online = true; retry = 0;
-      if (pending !== null && data.revision > pending.revision) pending = null;
+      if (!measuredConnection) {
+        measuredConnection = true;
+        ws.send(JSON.stringify({ type: 'ping', measure: true }));
+      }
+      const acknowledged = pending && data.action_result?.command_id === pending.command_id;
+      if (acknowledged) pending = null;
       if (JSON.stringify(myPlayer()?.trumps) !== JSON.stringify(next.players.find((p) => p.id === next.pid)?.trumps)) selected = null;
       const previous = state;
       state = next;
       if (data.type === 'state') { syncing = false; pending = null; rendered = -1; }
+      if (next.phase === 'ACTION' && next.turn === next.pid &&
+          (acknowledged || data.type === 'state' || previous?.turn !== next.turn || previous?.phase !== next.phase ||
+           previous?.round !== next.round || previous?.match_id !== next.match_id)) decisionStarted = performance.now();
       connection('已连接 · 私人牌桌');
       render();
       if (data.type === 'patch') feedback(previous, state);
+    } else if (data.type === 'pong') {
+      if (data.probe) ws.send(JSON.stringify({ type: 'probe_ack', probe: data.probe }));
+    } else if (data.type === 'network') {
+      networkRTT = Math.max(0, Math.round(data.rtt_ms));
+      if (state) {
+        state.timing = { ...state.timing, lag_allowance_ms: data.lag_allowance_ms };
+        if (online) connection('已连接 · 私人牌桌');
+      }
     } else if (data.type === 'error') {
       pending = null; toast(data.message); updateControls();
     } else if (data.type === 'retry') {
@@ -127,8 +149,11 @@ function connect() {
 
 function send(type, action, index) {
   if (!online || !state || pending !== null || socket?.readyState !== WebSocket.OPEN) return;
-  pending = { revision: state.revision, action: action || type, index, started: performance.now(), syncRequested: false };
-  const message = { type, revision: state.revision };
+  const started = performance.now();
+  const command_id = ++commandSequence;
+  pending = { revision: state.revision, action: action || type, index, command_id, started, syncRequested: false };
+  const message = { type, revision: state.revision, command_id };
+  if (['HIT', 'STAY', 'TRUMP', 'DISCARD'].includes(action)) message.think_ms = Math.min(86400000, Math.round(Math.max(0, started-decisionStarted)));
   if (action) message.action = action;
   if (index !== undefined) message.index = index;
   socket.send(JSON.stringify(message));
@@ -333,11 +358,13 @@ function updateClocks() {
     const node = $(`clock-${p.id}`);
     if (!node) continue;
     const prep = state.preparation_active === p.id;
-    const elapsed = online && !state.paused && state.phase === 'ACTION' ? (performance.now() - state.receivedAt) / 1000 : 0;
+    let elapsed = online && !state.paused && state.phase === 'ACTION' ? (performance.now() - state.receivedAt) / 1000 : 0;
     const active = prep || state.clock_active === p.id && !state.preparation_active;
     const stored = prep ? p.preparation : p.clock;
+    const confirming = p.id === state.pid && active && pending && ['HIT', 'STAY', 'TRUMP', 'DISCARD'].includes(pending.action);
+    if (confirming) elapsed = Math.max(0, elapsed - Math.min((performance.now()-pending.started)/1000, (state.timing?.lag_allowance_ms || 0)/1000));
     const left = stored === null ? null : Math.max(0, stored - (active ? elapsed : 0));
-    node.textContent = state.timer.enabled ? `${prep ? '准备 ' : ''}${left === null ? '∞' : Math.ceil(left) + 's'}${state.paused ? ' · 暂停' : ''}` : '';
+    node.textContent = state.timer.enabled ? `${confirming ? '确认 ' : prep ? '准备 ' : ''}${left === null ? '∞' : Math.ceil(left) + 's'}${state.paused ? ' · 暂停' : ''}` : '';
     node.classList.toggle('urgent', left !== null && left <= 10 && active);
   }
   if (state.paused) {
@@ -367,7 +394,13 @@ function updateControls() {
   const labels = { HIT: '抽牌', STAY: '停牌', TRUMP: '出牌', DISCARD: '弃牌', ready: '准备', REMATCH: '再战' };
   if (state && state.phase !== 'LOBBY') $('turn-hint').textContent = !online ? '连接中断 · 正在重连' : syncing ? '正在同步牌桌…' : pending ? `正在确认${labels[pending.action] || '操作'}${pending.syncRequested ? ' · 正在核对状态' : '…'}` : state.paused ? '暂停 · 等待对手重连' : state.phase === 'GAMEOVER' ? '本场结束 · 可选择再战' : state.phase === 'RESULT' ? '双方亮牌 · 正在结算' : state.turn === state.pid ? (Date.now() < cooldown ? '轮到你 · 操作已确认' : myPlayer().stopped ? '轮到你 · 已停牌，仍可使用王牌' : lockedDraw ? '轮到你 · 抽牌被封锁' : '轮到你 · 你的行动') : '对手正在思考…';
   for (const id of ['hit', 'stay', 'use-trump', 'discard-trump']) $(id).setAttribute('aria-busy', String(Boolean(pending)));
-  $('trump-hand').querySelectorAll('.trump-card').forEach((card) => card.classList.toggle('pending', pending?.index === Number(card.dataset.index)));
+  $('trump-hand').querySelectorAll('.trump-card').forEach((card) => {
+    const submitting = pending?.index === Number(card.dataset.index);
+    card.classList.toggle('pending', submitting);
+    if (submitting) card.dataset.pendingAction = pending.action;
+    else delete card.dataset.pendingAction;
+  });
+  $('my-player').dataset.pendingAction = pending?.action || '';
   document.querySelector('.table').classList.toggle('my-turn', Boolean(turn));
   $('table-status').textContent = state?.phase === 'ACTION' ? state.paused ? 'TABLE PAUSED' : state.turn === state.pid ? 'YOUR MOVE' : 'OPPONENT’S MOVE' : 'THE VERDICT';
 }

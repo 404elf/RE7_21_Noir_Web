@@ -203,3 +203,21 @@ body.playing .drag-ghost { width:110px; height:120px; min-height:120px; pointer-
   body.playing .trump-card strong { font-size:12px }
   body.playing .trump-card .category { font-size:7px }
 }
+/* Submit feedback starts locally; card values and effects remain authoritative. */
+body.playing .trump-card[data-pending-action="TRUMP"] {
+  animation: submit-up .18s ease-out forwards;
+}
+body.playing .trump-card[data-pending-action="DISCARD"] {
+  animation: submit-right .18s ease-out forwards;
+}
+body.playing #my-player .number-cards { position: relative; }
+body.playing #my-player[data-pending-action="HIT"] .number-cards::after {
+  content: "抽牌中…";
+  position: absolute; inset: auto 0 0; text-align: center;
+  color: var(--gold); pointer-events: none;
+}
+@keyframes submit-up { to { transform: translateY(-12px); opacity: .55; } }
+@keyframes submit-right { to { transform: translateX(12px); opacity: .4; } }
+@media (prefers-reduced-motion: reduce) {
+  body.playing .trump-card[data-pending-action] { animation: none; opacity: .55; }
+}
