@@ -69,6 +69,7 @@ def run(url):
                 expect(page.locator('.trump-card')).to_have_count(2)
                 hand = page.locator('#my-player .card-number').all_text_contents()
                 page.reload()
+                expect(page.locator('#game')).to_be_visible()
                 expect(page.locator('#stay')).to_be_enabled()
                 assert page.locator('#my-player .card-number').all_text_contents() == hand
                 expect(page.locator('#my-effects')).to_contain_text('加注')

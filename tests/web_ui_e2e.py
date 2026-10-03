@@ -93,7 +93,7 @@ def assert_count(page, expected):
     expect(page.locator('#trump-count')).to_contain_text(f'{expected} /')
 
 
-def check_usability(url, short_auth=True):
+def check_usability(url, short_auth=True, network=False):
     OUT.mkdir(exist_ok=True)
     errors = []
     report = {'viewports': [], 'gestures': [], 'recovery': {}}
@@ -131,6 +131,7 @@ def check_usability(url, short_auth=True):
             assert a.evaluate('window.uiWire.retries') == (1 if short_auth else 0)
             report['recovery']['auth_timeout'] = 'same reserved seat recovered automatically' if short_auth else 'production auth threshold unchanged'
             a.locator('#ready').click()
+            expect(b.locator('#lobby-players .lobby-seat').first).to_contain_text('已准备')
             b.locator('#ready').click()
             expect(a.locator('#game')).to_be_visible()
             expect(a.locator('#stay')).to_be_enabled()
@@ -279,7 +280,15 @@ def check_usability(url, short_auth=True):
               const timeout=setTimeout(()=>{observer.disconnect();reject('Rapid actions stalled');},5000);
               observer.observe(counter,{childList:true});next();
             })""")
-            assert len(rapid) == 3 and rapid[-1] < 400, rapid
+            rtt = a.evaluate("Number(document.getElementById('connection').textContent.match(/(\\d+)ms/)?.[1])") if network else 0
+            if network:
+                assert rtt > 0, 'A measured RTT is required for network acceptance'
+            # Keep the local 400ms regression. Remote confirmed actions also
+            # include three real round trips; do not call that UI cooldown.
+            budget = 400 + 3*rtt
+            assert len(rapid) == 3 and rapid[-1] < budget, (rapid, rtt, budget)
+            report['rapid_network_rtt_ms'] = rtt
+            report['rapid_budget_ms'] = budget
             assert a.evaluate('window.uiWire.actions') == old_actions + 3
             assert_count(a, 0)
             expect(a.locator('.trump-detail')).to_be_hidden()
@@ -339,10 +348,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--base-path', default='/re7')
     parser.add_argument('--url')
+    parser.add_argument('--network', action='store_true', help='Include measured RTT for a remote server or SSH tunnel; retain the local UI budget')
     args = parser.parse_args()
     OUT.mkdir(exist_ok=True)
     if args.url:
-        check_usability(args.url.rstrip('/'), short_auth=False)
+        check_usability(args.url.rstrip('/'), short_auth=False, network=args.network)
         return
     # Retain diagnostics. On Windows another process can briefly retain a log
     # handle after server exit, making deletion with a temporary folder fail.
