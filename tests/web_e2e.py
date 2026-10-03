@@ -75,7 +75,10 @@ def run(url, fast=False):
                 remaining = a.locator(".trump-card").count()
                 a.locator(".trump-card").first.click()
                 expect(a.locator("#discard-trump")).to_be_enabled()
-                a.locator(".trump-card").first.drag_to(a.locator("#discard-drop"))
+                bounds = a.locator('.trump-card').first.bounding_box()
+                x, y = bounds['x'] + bounds['width']/2, bounds['y'] + bounds['height']/2
+                a.mouse.move(x, y); a.mouse.down()
+                a.mouse.move(x+60, y, steps=5); a.mouse.up()
                 expect(a.locator(".trump-card")).to_have_count(remaining - 1)
                 # A lost baseline must request one full sync and recover the same hand.
                 checkpoints = sum(f["type"] == "state" for f in frames)
@@ -187,6 +190,7 @@ def check_clock(url):
             assert a.locator('#clock-2').inner_text() == frozen
             b.goto(url); expect(b.locator('#game')).to_be_visible()
             expect(b.locator('#stay')).to_be_enabled()
+            a.locator('#match-menu summary').click()
             a.locator('#surrender').click(); expect(a.locator('#confirm-dialog')).to_be_visible()
             a.locator('#confirm-cancel').click(); expect(a.locator('#confirm-dialog')).to_be_hidden()
             assert not a.locator('#rematch').is_visible()

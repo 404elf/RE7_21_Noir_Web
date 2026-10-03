@@ -37,9 +37,10 @@ def load_timer(root):
 
 
 class Match:
-    def __init__(self, timer=None, monotonic=time.monotonic, wall=time.time, *, timeout_grace=None):
+    def __init__(self, timer=None, monotonic=time.monotonic, wall=time.time, *, timeout_grace=None, action_interval=.5):
         self.monotonic, self.wall = monotonic, wall
         self.timeout_grace = timeout_grace
+        self.action_interval = action_interval
         self.turn_serial = 0
         self.clock_debit = {1: 0., 2: 0.}
         self.last_lag_credit = 0.
@@ -262,7 +263,7 @@ class Match:
             self.record('gameover', pid, winner=gs.round_winner, reason=gs.end_reason)
             self.publish()
             return True
-        if gs.phase != 'ACTION' or gs.turn != pid or self.wall()-gs.last_action_time[pid] < .5:
+        if gs.phase != 'ACTION' or gs.turn != pid or self.wall()-gs.last_action_time[pid] < self.action_interval:
             return False
         trumps = getattr(gs, f'p{pid}_trumps')
         opponent = 3-pid

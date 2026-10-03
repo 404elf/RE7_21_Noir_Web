@@ -32,6 +32,7 @@ jobs:
       - run: NOIR_BASE_PATH=/re7 docker compose -p noir-web-ci up --build -d --wait
       - run: python tests/web_e2e.py --url http://127.0.0.1:8000/re7
       - run: python tests/web_latency_e2e.py --url http://127.0.0.1:8000/re7
+      - run: python tests/web_ui_e2e.py --url http://127.0.0.1:8000/re7
       - name: Export the tested image
         env:
           REVISION: ${{ github.event.pull_request.head.sha || github.sha }}

@@ -128,3 +128,14 @@ class MatchTests(unittest.TestCase):
         self.assertEqual(config['mode'], 'turn')
         self.assertEqual(config['initial_minutes'], 3)
         self.assertEqual(config['increment_seconds'], 0)
+
+    def test_default_match_retains_desktop_action_interval(self):
+        match, clock = self.make(enabled=False)
+        match.gs.p1_trumps = [('Shield', 'SHIELD', 1)] * 3
+        message = f'DISCARD:0:{match.gs.round_id}'
+        self.assertTrue(match.command(1, message))
+        self.assertFalse(match.command(1, message))
+        clock.advance(.49)
+        self.assertFalse(match.command(1, message))
+        clock.advance(.02)
+        self.assertTrue(match.command(1, message))

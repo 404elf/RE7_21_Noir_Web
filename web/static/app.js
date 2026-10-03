@@ -13,8 +13,9 @@ function inviteURL(room) {
 const $ = (id) => document.getElementById(id);
 const categories = { attack: '进攻', guard: '防御', draw: '抽牌', control: '干扰', resource: '资源', target: '目标' };
 let catalog = {}, state = null, seat = null, socket = null, selected = null;
-let pending = null, rendered = -1, reconnectTimer, heartbeat, toastTimer, cooldownTimer;
-let closing = false, retry = 0, online = false, cooldown = 0;
+let pending = null, rendered = -1, reconnectTimer, heartbeat, toastTimer;
+let closing = false, retry = 0, online = false;
+let inspectedEffect = null, detailAnchor = null;
 let syncing = false;
 let handPage = 0, lastReceived = 0;
 let networkRTT = null, commandSequence = 0, decisionStarted = 0;
@@ -157,11 +158,6 @@ function send(type, action, index) {
   if (action) message.action = action;
   if (index !== undefined) message.index = index;
   socket.send(JSON.stringify(message));
-  if (['HIT', 'STAY', 'TRUMP', 'DISCARD'].includes(action)) {
-    cooldown = Date.now() + 550;
-    clearTimeout(cooldownTimer);
-    cooldownTimer = setTimeout(updateControls, 560);
-  }
   updateControls();
 }
 
@@ -176,6 +172,7 @@ function reconnect() {
 function checkResponse() {
   if (!seat || closing || socket?.readyState !== WebSocket.OPEN) return;
   const now = performance.now();
+  if (pending && now - pending.started > 1000) updateControls();
   // Request a current view, never replay a possibly already accepted move.
   if (pending && now - pending.started > 1500 && !pending.syncRequested) {
     pending.syncRequested = true;
@@ -192,7 +189,7 @@ function render() {
   if (state.paused) $('notice').textContent = `对手连接中断，牌局与计时已暂停。剩余重连时间 ${state.reconnect_seconds} 秒。`;
   else if (state.phase === 'LOBBY') $('notice').textContent = '把房间码或邀请链接发给朋友，双方准备后开局。';
   else if (state.phase === 'GAMEOVER') $('notice').textContent = '本场结束。双方同意再战后，将开启全新一场。';
-  else $('notice').textContent = state.phase === 'RESULT' ? '双方亮牌，正在结算。本局结果会保留在记录中。' : '暗牌只对你可见。每次抽牌或停牌后交接行动。';
+  else $('notice').textContent = '';
   if (rendered !== state.revision) {
     rendered = state.revision;
     if (state.phase === 'LOBBY') renderLobby();
@@ -251,7 +248,7 @@ function renderPlayer(p, mine) {
   const total = element('div', null, `total ${p.total > state.target ? 'bust' : ''}`);
   total.append(element('strong', p.total === null ? '? + ' + p.hand.slice(1).reduce((a, b) => a + b, 0) : String(p.total)), element('small', p.total === null ? `明牌点数 · 王牌 ${p.trump_count}` : p.total > state.target ? '已爆牌 · 可用王牌自救' : `总点数 · 王牌 ${p.trump_count}`));
   oldCards.forEach((card) => card.remove()); cards.querySelector('.total')?.remove();
-  cards.append(total); added.forEach((card, i) => deal(card, i));
+  cards.append(total); added.forEach((card) => deal(card));
 }
 
 function renderGame() {
@@ -265,11 +262,15 @@ function renderGame() {
       const info = cardInfo(t.name);
       const node = element('button', info.title + (t.counter === undefined ? '' : ` ${t.counter}/${t.val}`), `effect ${info.category}`);
       node.title = info.description;
-      node.onclick = () => { selectTrump(null); $('selected-title').textContent = info.title; $('selected-description').textContent = info.description; };
+      node.dataset.name = t.name;
+      node.onclick = () => { selectTrump(null); inspectedEffect = t.name; detailAnchor = node; updateTrumpDetail(); };
       return node;
     });
-    $(mine ? 'my-effects' : 'opponent-effects').replaceChildren(...effects);
+    const container = $(mine ? 'my-effects' : 'opponent-effects');
+    container.replaceChildren(...effects); container.parentElement.hidden = !effects.length;
   }
+  document.querySelector('.field-effects').hidden = !state.active_trumps.length;
+  if (inspectedEffect && !state.active_trumps.some((t) => t.name === inspectedEffect)) inspectedEffect = null;
   const cards = myPlayer().trumps;
   const pageSize = innerWidth <= 760 ? 3 : 6;
   const pageCount = Math.max(1, Math.ceil(cards.length / pageSize));
@@ -277,6 +278,7 @@ function renderGame() {
   $('hand-page').textContent = `${handPage + 1}/${pageCount}`;
   $('hand-prev').disabled = handPage === 0;
   $('hand-next').disabled = handPage === pageCount - 1;
+  document.querySelector('.hand-pages').hidden = pageCount === 1;
   if (selected !== null && selected >= cards.length) selected = null;
   $('trump-count').textContent = `${cards.length} / ${state.rules.game_settings.max_trumps_hand_size}`;
   $('trump-hand').replaceChildren(...cards.slice(handPage * pageSize, (handPage + 1) * pageSize).map(([name], offset) => {
@@ -286,12 +288,12 @@ function renderGame() {
     button.dataset.index = index;
     button.setAttribute('aria-pressed', String(selected === index));
     button.setAttribute('aria-label', `${info.title}：${info.description}`);
-    const symbols = { attack: '†', guard: '◇', draw: '↗', control: '✣', resource: '∞', target: '◎' };
-    button.append(element('span', categories[info.category], 'category'), element('span', symbols[info.category] || '◆', 'trump-art'), element('strong', info.title), element('small', info.english));
+    button.append(element('span', categories[info.category], 'category'), element('strong', info.title), element('small', info.english));
     button.onclick = () => { if (suppressClick) return; selectTrump(index); };
     return button;
   }));
-  if (!cards.length) $('trump-hand').append(element('p', '暂无王牌。每局开始会按配置补充。', 'muted'));
+  $('trump-hand').hidden = !cards.length;
+  $('gesture-hint').hidden = !cards.length;
   updateTrumpDetail();
   renderResult();
   $('events').replaceChildren(...state.events.slice(-16).reverse().map((event) => {
@@ -303,6 +305,8 @@ function renderGame() {
 
 function selectTrump(index) {
   selected = index;
+  inspectedEffect = null;
+  detailAnchor = index === null ? null : $('trump-hand').querySelector(`[data-index="${index}"]`);
   $('trump-hand').querySelectorAll('.trump-card').forEach((card) => {
     const active = Number(card.dataset.index) === index;
     card.classList.toggle('selected', active); card.setAttribute('aria-pressed', String(active));
@@ -311,9 +315,20 @@ function selectTrump(index) {
 }
 
 function updateTrumpDetail() {
-  const info = selected === null ? null : cardInfo(myPlayer().trumps[selected]?.[0]);
-  $('selected-title').textContent = info?.title || '选择一张王牌';
-  $('selected-description').textContent = info?.description || '上拉出牌、右拉弃牌，也可点选后使用下方按钮。王牌不结束行动。';
+  const name = selected === null ? inspectedEffect : myPlayer()?.trumps[selected]?.[0];
+  const panel = document.querySelector('.trump-detail');
+  panel.hidden = !name;
+  if (!name) return;
+  const info = cardInfo(name);
+  $('selected-title').textContent = info.title;
+  $('selected-description').textContent = info.description;
+  $('discard-drop').hidden = selected === null;
+  detailAnchor = selected === null ? document.querySelector(`.effect[data-name="${name}"]`) : $('trump-hand').querySelector(`[data-index="${selected}"]`);
+  if (!detailAnchor) { panel.hidden = true; return; }
+  const anchor = detailAnchor.getBoundingClientRect();
+  const box = panel.getBoundingClientRect();
+  panel.style.left = `${Math.max(8, Math.min(innerWidth - box.width - 8, anchor.left))}px`;
+  panel.style.top = `${Math.max(8, Math.min(innerHeight - box.height - 8, anchor.top - box.height - 8))}px`;
 }
 
 function eventText(event) {
@@ -339,12 +354,9 @@ function renderResult() {
   const current = ['RESULT', 'GAMEOVER'].includes(state.phase);
   const result = current ? state : state.last_result;
   $('result-panel').hidden = !current || !result;
-  $('table-verdict').hidden = !current;
+  document.querySelector('.turn-actions').hidden = current;
   if (!result) return;
   const over = state.phase === 'GAMEOVER';
-  $('verdict-label').textContent = over ? 'THE FINAL VERDICT' : `ROUND ${String(state.round).padStart(2, '0')} / REVEAL`;
-  $('verdict-title').textContent = state.winner === 0 ? 'DRAW' : state.winner === state.pid ? (over ? 'YOU SURVIVED' : 'YOU WIN') : (over ? 'GAME OVER' : 'YOU LOSE');
-  $('table-verdict').className = `table-verdict ${state.winner === state.pid ? 'victory' : state.winner ? 'loss' : ''}`;
   $('result-title').textContent = result.winner === 0 ? '平局。' : result.winner === state.pid ? (over ? '你赢得了本场。' : '这一手，你赢了。') : (over ? '本场落败。' : '这一手，对手胜。');
   const reasons = { surrender: '玩家投降', agreement: '双方同意平局', timeout: '整场计时耗尽', preparation_timeout: '首次准备超时', disconnect: '断线超过重连宽限期' };
   $('result-text').textContent = (over && reasons[state.end_reason]) || (result.escape ? '逃脱成功，平局结束整场。' : `${current ? '本局' : `上一局（第 ${result.round} 局）`}伤害 ${result.damage}。${over ? '双方可选择再战。' : '下一局继续争夺。'}`);
@@ -380,7 +392,7 @@ function updateControls() {
   $('edit-room-settings').disabled = !ready || state?.settings_locked || state?.pid !== 1;
   $('room-settings').disabled = !state || !settingsEditor.options;
   const action = ready && !state.paused && state.phase === 'ACTION';
-  const turn = action && state.turn === state.pid && Date.now() >= cooldown;
+  const turn = action && state.turn === state.pid;
   const lockedDraw = state?.active_trumps?.some((t) => t.owner !== state.pid && ['GAMBLE', 'SILENCE'].includes(t.type));
   const lockedTrump = state?.active_trumps?.some((t) => t.owner !== state.pid && t.type === 'DESTROY_BLOCK');
   $('hit').disabled = !turn || myPlayer()?.total > state.target || state.deck_count === 0 || lockedDraw;
@@ -392,8 +404,9 @@ function updateControls() {
   $('accept-draw').disabled = $('decline-draw').disabled = !action;
   $('rematch').disabled = !ready || state?.players.some((p) => !p.connected) || myPlayer()?.rematch;
   const labels = { HIT: '抽牌', STAY: '停牌', TRUMP: '出牌', DISCARD: '弃牌', ready: '准备', REMATCH: '再战' };
-  if (state && state.phase !== 'LOBBY') $('turn-hint').textContent = !online ? '连接中断 · 正在重连' : syncing ? '正在同步牌桌…' : pending ? `正在确认${labels[pending.action] || '操作'}${pending.syncRequested ? ' · 正在核对状态' : '…'}` : state.paused ? '暂停 · 等待对手重连' : state.phase === 'GAMEOVER' ? '本场结束 · 可选择再战' : state.phase === 'RESULT' ? '双方亮牌 · 正在结算' : state.turn === state.pid ? (Date.now() < cooldown ? '轮到你 · 操作已确认' : myPlayer().stopped ? '轮到你 · 已停牌，仍可使用王牌' : lockedDraw ? '轮到你 · 抽牌被封锁' : '轮到你 · 你的行动') : '对手正在思考…';
-  for (const id of ['hit', 'stay', 'use-trump', 'discard-trump']) $(id).setAttribute('aria-busy', String(Boolean(pending)));
+  const slowResponse = pending && performance.now() - pending.started > 1000;
+  if (state && state.phase !== 'LOBBY') $('turn-hint').textContent = !online ? '连接中断 · 正在重连' : syncing ? '正在同步牌桌…' : slowResponse ? `正在确认${labels[pending.action] || '操作'}${pending.syncRequested ? ' · 正在核对状态' : '…'}` : state.paused ? '暂停 · 等待对手重连' : state.phase === 'GAMEOVER' ? '本场结束 · 可选择再战' : state.phase === 'RESULT' ? '双方亮牌 · 正在结算' : state.turn === state.pid ? (myPlayer().stopped ? '轮到你 · 已停牌，仍可使用王牌' : lockedDraw ? '轮到你 · 抽牌被封锁' : '轮到你 · 你的行动') : '对手的行动';
+  for (const [id, move] of Object.entries({ hit: 'HIT', stay: 'STAY', 'use-trump': 'TRUMP', 'discard-trump': 'DISCARD' })) $(id).setAttribute('aria-busy', String(pending?.action === move));
   $('trump-hand').querySelectorAll('.trump-card').forEach((card) => {
     const submitting = pending?.index === Number(card.dataset.index);
     card.classList.toggle('pending', submitting);
@@ -402,7 +415,6 @@ function updateControls() {
   });
   $('my-player').dataset.pendingAction = pending?.action || '';
   document.querySelector('.table').classList.toggle('my-turn', Boolean(turn));
-  $('table-status').textContent = state?.phase === 'ACTION' ? state.paused ? 'TABLE PAUSED' : state.turn === state.pid ? 'YOUR MOVE' : 'OPPONENT’S MOVE' : 'THE VERDICT';
 }
 
 function renderCatalog() {
@@ -436,6 +448,10 @@ $('ready').onclick = () => send('ready');
 for (const [id, action] of Object.entries({ hit: 'HIT', stay: 'STAY', rematch: 'REMATCH', 'offer-draw': 'DRAW_OFFER', 'accept-draw': 'DRAW_ACCEPT', 'decline-draw': 'DRAW_DECLINE' })) $(id).onclick = () => send('action', action);
 $('use-trump').onclick = () => send('action', 'TRUMP', selected);
 $('discard-trump').onclick = () => send('action', 'DISCARD', selected);
+$('detail-close').onclick = () => selectTrump(null);
+document.addEventListener('pointerdown', (event) => {
+  if (!event.target.closest('.trump-card, .trump-detail, .effect')) selectTrump(null);
+});
 $('surrender').onclick = async () => { if (await confirmMove('就此结束？', '投降将结束本场对局，对手获胜。', '确认投降')) send('action', 'SURRENDER'); };
 $('copy-invite').onclick = async () => {
   const link = inviteURL(state?.room || seat?.room).href;
@@ -475,6 +491,7 @@ let drag = null, suppressClick = false;
 $('trump-hand').addEventListener('pointerdown', (event) => {
   const card = event.target.closest('.trump-card');
   if (!card || !event.isPrimary || event.button !== 0) return;
+  event.preventDefault(); card.focus({ preventScroll: true });
   drag = { index: Number(card.dataset.index), revision: state.revision, pointer: event.pointerId, touch: event.pointerType !== 'mouse', x: event.clientX, y: event.clientY, card, ghost: null };
   selectTrump(drag.index);
 });
@@ -517,7 +534,7 @@ document.addEventListener('visibilitychange', () => {
   if (socket?.readyState === WebSocket.CLOSED) connect();
   else checkResponse();
 });
-document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { endDrag(); suppressClick = false; } });
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { endDrag(); suppressClick = false; selectTrump(null); } });
 document.addEventListener('keydown', (event) => {
   if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || document.querySelector('dialog[open]') || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
   const button = event.key.toLowerCase() === 'h' ? $('hit') : event.key.toLowerCase() === 's' ? $('stay') : null;

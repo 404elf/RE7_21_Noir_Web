@@ -19,7 +19,7 @@ OUT = ROOT / '.artifacts'
 # The move is still delivered to the server once; only its first browser update
 # is withheld. All protocol/auth/engine validation remains enabled.
 FAULTS = """(() => {
-  window.uiWire = { actions: 0, syncs: 0, retries: 0 };
+  window.uiWire = { actions: 0, syncs: 0, retries: 0, deals: [] };
   window.WebSocket = new Proxy(window.WebSocket, { construct(Target, args) {
     const ws = Reflect.construct(Target, args);
     window.uiSocket = ws;
@@ -44,7 +44,15 @@ FAULTS = """(() => {
           if (data.type === 'patch' && window.holdNextPatch) {
             window.holdNextPatch = false; return;
           }
+          const before = document.querySelectorAll('#my-player .number-card').length;
           callback(event);
+          const cards = document.querySelectorAll('#my-player .number-card');
+          if (before > 0 && cards.length > before) {
+            const card = cards[cards.length-1];
+            window.uiWire.deals.push({opacity:getComputedStyle(card).opacity,
+              value:card.querySelector('.card-number').textContent,
+              animations:card.getAnimations().map(a=>({duration:a.effect.getTiming().duration,delay:a.effect.getTiming().delay}))});
+          }
         });
       }
     });
@@ -85,7 +93,7 @@ def assert_count(page, expected):
     expect(page.locator('#trump-count')).to_contain_text(f'{expected} /')
 
 
-def check_usability(url):
+def check_usability(url, short_auth=True):
     OUT.mkdir(exist_ok=True)
     errors = []
     report = {'viewports': [], 'gestures': [], 'recovery': {}}
@@ -116,21 +124,24 @@ def check_usability(url):
             for page, seat in [(a, host), (b, joined.json())]:
                 page.evaluate('([key, seat]) => sessionStorage.setItem(key, JSON.stringify(seat))',
                               [seat_key, seat])
-                if page is a:
+                if page is a and short_auth:
                     page.evaluate("sessionStorage.setItem('delay-first-auth', 'yes')")
                 page.goto(url + '/?room=' + seat['room'])
                 expect(page.locator('#ready')).to_be_enabled(timeout=10000)
-            assert a.evaluate('window.uiWire.retries') == 1
-            report['recovery']['auth_timeout'] = 'same reserved seat recovered automatically'
+            assert a.evaluate('window.uiWire.retries') == (1 if short_auth else 0)
+            report['recovery']['auth_timeout'] = 'same reserved seat recovered automatically' if short_auth else 'production auth threshold unchanged'
             a.locator('#ready').click()
             b.locator('#ready').click()
             expect(a.locator('#game')).to_be_visible()
             expect(a.locator('#stay')).to_be_enabled()
             assert_count(a, 8)
+            expect(a.locator('.trump-detail')).to_be_hidden()
+            expect(a.locator('.field-effects')).to_be_hidden()
 
             for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390)]:
                 a.set_viewport_size({'width': width, 'height': height})
                 a.wait_for_timeout(80)
+                a.locator('.trump-card').first.click()
                 geometry = a.evaluate("""() => {
                   const ids = ['opponent', 'my-player', 'trump-hand', 'hit', 'stay', 'use-trump', 'discard-trump'];
                   return {width: innerWidth, height: innerHeight,
@@ -146,9 +157,24 @@ def check_usability(url):
                 for name, bounds in geometry['bounds'].items():
                     assert bounds['width'] > 0 and bounds['height'] > 0, (name, geometry)
                     assert bounds['x'] >= 0 and bounds['y'] >= 0 and bounds['right'] <= width + 1 and bounds['bottom'] <= height + 1, (name, geometry)
+                quality = a.evaluate("""() => {
+                  const card=document.querySelector('#my-player .number-card'), hit=document.getElementById('hit');
+                  return {numberHeight:card.getBoundingClientRect().height,
+                    titleFont:parseFloat(getComputedStyle(document.querySelector('.trump-card strong')).fontSize),
+                    actionGap:hit.getBoundingClientRect().top-card.getBoundingClientRect().bottom,
+                    selectable:getComputedStyle(document.getElementById('game')).userSelect};
+                }""")
+                assert quality['selectable'] == 'none', quality
+                assert 0 <= quality['actionGap'] <= 55, quality
+                assert quality['titleFont'] >= (16 if width <= 760 else 17), quality
+                assert quality['numberHeight'] >= (110 if width > 760 and height > 520 else 85 if height > 520 else 48), quality
+                geometry['quality'] = quality
                 report['viewports'].append(geometry)
                 if (width, height) in [(1440, 900), (390, 844), (844, 390)]:
+                    a.locator('#detail-close').click()
                     a.screenshot(path=str(OUT / f'web-ui-{width}x{height}.png'), animations='disabled')
+                    a.locator('.trump-card').first.click()
+                    a.screenshot(path=str(OUT / f'web-ui-detail-{width}x{height}.png'), animations='disabled')
 
             a.set_viewport_size({'width': 1440, 'height': 900})
             expect(a.locator('.trump-card')).to_have_count(6)
@@ -204,10 +230,50 @@ def check_usability(url):
             report['recovery']['withheld_update_seconds'] = round(time.monotonic() - started, 3)
             report['recovery']['move_count'] = 'one accepted discard; no replay'
 
+            # Chain actual controls on each confirmed hand change, without a
+            # half-second cooldown or stale index/revision replay.
+            old_actions = a.evaluate('window.uiWire.actions')
+            rapid = a.evaluate("""() => new Promise((resolve,reject) => {
+              const counter=document.getElementById('trump-count'), times=[];
+              const start=performance.now();
+              const observer=new MutationObserver(()=>{
+                const remaining=parseInt(counter.textContent);
+                times.push(performance.now()-start);
+                if(!remaining) {observer.disconnect();clearTimeout(timeout);resolve(times);}
+                else next();
+              });
+              const next=()=>{
+                document.querySelector('.trump-card').click();
+                const button=document.getElementById('discard-trump');
+                if(button.disabled) {observer.disconnect();reject('Fresh revision stayed locked');return;}
+                button.click();button.click(); // One outstanding command only.
+              };
+              const timeout=setTimeout(()=>{observer.disconnect();reject('Rapid actions stalled');},5000);
+              observer.observe(counter,{childList:true});next();
+            })""")
+            assert len(rapid) == 3 and rapid[-1] < 400, rapid
+            assert a.evaluate('window.uiWire.actions') == old_actions + 3
+            assert_count(a, 0)
+            expect(a.locator('.trump-detail')).to_be_hidden()
+            expect(a.locator('#trump-hand')).to_be_hidden()
+            expect(a.locator('.hand-pages')).to_be_hidden()
+            assert a.locator('.trump-panel').bounding_box()['height'] <= 42
+            report['rapid_discards_ms'] = rapid
+            a.locator('#hit').click()
+            expect(b.locator('#stay')).to_be_enabled()
+            expect(a.locator('#my-player .number-card')).to_have_count(3)
+            reveal = a.evaluate('window.uiWire.deals.at(-1)')
+            assert reveal['value'].isdigit() and float(reveal['opacity']) == 1, reveal
+            assert all(t['duration'] <= 120 and t['delay'] == 0 for t in reveal['animations']), reveal
+            report['draw_first_frame'] = reveal
+            assert a.evaluate("getComputedStyle(document.querySelector('#my-player .number-cards'),'::after').content") in ['none','normal']
+            print(f'PASS: three rapid confirmed discards in {rapid[-1]:.1f}ms; no duplicate submission; draw fully visible on first receipt', flush=True)
+
             a.locator('#journal-open').click()
             expect(a.locator('#journal-dialog')).to_be_visible()
             expect(a.locator('#events li')).not_to_have_count(0)
             a.locator('#journal-close').click()
+            a.locator('#match-menu summary').click()
             a.locator('#surrender').click()
             a.locator('#confirm-ok').click()
             expect(a.locator('#rematch')).to_be_visible()
@@ -231,8 +297,12 @@ def check_usability(url):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--base-path', default='/re7')
+    parser.add_argument('--url')
     args = parser.parse_args()
     OUT.mkdir(exist_ok=True)
+    if args.url:
+        check_usability(args.url.rstrip('/'), short_auth=False)
+        return
     # Retain diagnostics. On Windows another process can briefly retain a log
     # handle after server exit, making deletion with a temporary folder fail.
     log_path = OUT / 'web-ui-server.log'

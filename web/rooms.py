@@ -103,7 +103,7 @@ class Room:
         if not self.match:
             if self.connected == 2 and all(s.ready for s in self.seats.values()):
                 with rules_active(self.rules):
-                    self.match = Match(self.timer, monotonic=self.clock, timeout_grace=self.lag_allowance)
+                    self.match = Match(self.timer, monotonic=self.clock, timeout_grace=self.lag_allowance, action_interval=0.)
                 self.changed()
             return
         match, gs = self.match, self.match.gs
@@ -167,7 +167,7 @@ class Room:
         if not accepted:
             if before != self.match.sequence:
                 self.changed()  # Match.command also ticks: a deadline may have just elapsed.
-            raise RoomError("当前不能执行：请检查行动方、封锁效果和 0.5 秒操作间隔。")
+            raise RoomError("当前不能执行：请检查行动方、封锁效果与牌桌状态。")
         self.seats[pid].lag_budget = max(0, self.seats[pid].lag_budget-self.match.last_lag_credit)
         self.changed()
 
