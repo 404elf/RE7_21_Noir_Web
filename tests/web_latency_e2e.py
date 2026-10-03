@@ -28,6 +28,7 @@ DELAY = """(() => {
           const card=document.querySelector('.trump-card[data-pending-action]');
           window.latencyWire.feedback.push({ms:performance.now()-lastSubmission.at,
             animation:card ? getComputedStyle(card).animationName : null,
+            busy:document.getElementById(d.action==='TRUMP'?'use-trump':d.action==='DISCARD'?'discard-trump':d.action==='HIT'?'hit':'stay').getAttribute('aria-busy'),
             confirming:document.getElementById('turn-hint').textContent});
         });
       }
@@ -99,7 +100,7 @@ def check_latency(url):
                 expect(a.locator('#trump-count')).to_contain_text(f'{7-index} /')
             wire=a.evaluate('window.latencyWire')
             assert wire['actions']==3
-            assert all(f['ms']<100 and '正在确认' in f['confirming'] for f in wire['feedback'])
+            assert all(f['ms']<100 and f['busy']=='true' and '正在确认' not in f['confirming'] for f in wire['feedback'])
             assert [f['animation'] for f in wire['feedback']]==['submit-up','submit-up','submit-right']
             results=[r for r in wire['results'] if r['send_to_confirm_ms'] is not None]
             assert len(results)==3

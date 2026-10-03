@@ -57,22 +57,16 @@
         </div>
         <div id="game" class="game-layout" hidden>
           <div class="play-area">
-            <div class="table panel">
-              <div class="table-top"><span id="round-label" class="eyebrow"></span><span id="table-status">THE LAST HAND</span><span id="deck-label" class="muted"></span></div>
+            <div class="table panel" id="play-drop" data-drop="play">
+              <div class="table-header"><div class="table-top"><span id="round-label" class="eyebrow"></span><span id="deck-label" class="muted"></span></div><section class="table-center"><div class="target-seal"><span>目标</span><strong id="target">21</strong></div><div class="target-note"><span id="stake-label"></span></div></section></div>
               <section id="opponent" class="player opponent" aria-label="对手牌区"></section>
-              <div class="field-effects" id="play-drop" data-drop="play"><strong>场上王牌</strong><div><small>对手</small><div id="opponent-effects" class="effects" aria-label="对手场上王牌"></div></div><div><small>你</small><div id="my-effects" class="effects" aria-label="我的场上王牌"></div></div></div>
-              <div id="table-verdict" class="table-verdict" hidden><small id="verdict-label"></small><strong id="verdict-title"></strong></div>
-              <section id="my-player" class="player mine" aria-label="我的牌区"></section>
+              <div class="field-effects"><div><small>对手场牌</small><div id="opponent-effects" class="effects" aria-label="对手场上王牌"></div></div><div><small>我的场牌</small><div id="my-effects" class="effects" aria-label="我的场上王牌"></div></div></div>
+              <div class="mine-zone"><section id="my-player" class="player mine" aria-label="我的牌区"></section><section class="turn-actions"><p id="turn-hint" role="status" aria-live="polite"></p><div><button id="hit" class="primary">抽牌 <kbd>H</kbd></button><button id="stay" class="secondary">停牌 <kbd>S</kbd></button><details id="match-menu"><summary aria-label="更多对局操作">更多 ⋯</summary><div><button id="offer-draw" class="secondary">提出求和</button><button id="surrender" class="danger text-button">投降</button></div></details></div></section><section id="result-panel" class="result-panel" hidden><h2 id="result-title"></h2><p id="result-text"></p><button id="rematch" class="primary" hidden>再来一场</button></section></div>
             </div>
             <section class="trump-panel panel"><div class="section-heading"><h2>我的王牌 <small id="trump-count"></small></h2><span id="gesture-hint" class="muted" aria-live="polite">上拉出牌 · 右拉弃牌 · 点选查看</span><div class="hand-pages"><button id="hand-prev" class="secondary" aria-label="上一页王牌">‹</button><span id="hand-page"></span><button id="hand-next" class="secondary" aria-label="下一页王牌">›</button></div></div><div id="trump-hand" class="trump-hand"></div></section>
           </div>
-          <aside class="sidebar">
-            <section class="table-center panel"><div class="target-seal"><span>本局目标</span><strong id="target">21</strong><small>THE LIMIT</small></div><div class="target-note"><span id="stake-label"></span><small>双方连续停牌后结算<br>王牌不结束行动</small></div></section>
-            <section class="turn-actions panel"><p id="turn-hint" role="status" aria-live="polite"></p><div><button id="hit" class="primary">抽牌 <kbd>H</kbd></button><button id="stay" class="secondary">停牌 <kbd>S</kbd></button></div></section>
-            <section class="trump-detail panel"><div><span class="eyebrow">王牌效果</span><strong id="selected-title">选择一张王牌</strong><p id="selected-description">上拉出牌、右拉弃牌，也可点选后使用下方按钮。</p></div><div id="discard-drop" data-drop="discard"><button id="use-trump" class="primary" disabled>使用王牌 ↑</button><button id="discard-trump" class="secondary" disabled>弃牌 →</button></div></section>
-            <section id="result-panel" class="panel result-panel" hidden><p class="eyebrow">THE VERDICT</p><h2 id="result-title"></h2><p id="result-text"></p><button id="rematch" class="primary wide" hidden>再来一场</button></section>
-            <section class="match-options"><div id="draw-request" hidden><p id="draw-request-text"></p><button id="accept-draw" class="secondary">接受求和</button><button id="decline-draw" class="text-button">拒绝</button></div><div class="match-controls"><button id="offer-draw" class="text-button">提出求和</button><button id="surrender" class="text-button danger">投降</button></div></section>
-          </aside>
+          <section class="trump-detail" aria-label="王牌详情" hidden><div class="detail-heading"><strong id="selected-title"></strong><button id="detail-close" class="text-button" aria-label="收起王牌详情">×</button></div><p id="selected-description"></p><div id="discard-drop" data-drop="discard"><button id="use-trump" class="primary" disabled>使用 ↑</button><button id="discard-trump" class="secondary" disabled>弃牌 →</button></div></section>
+          <section class="match-options"><div id="draw-request" hidden><p id="draw-request-text"></p><button id="accept-draw" class="secondary">接受求和</button><button id="decline-draw" class="text-button">拒绝</button></div></section>
         </div>
       </section>
     </main>

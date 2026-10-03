@@ -138,7 +138,7 @@ def test_unmeasured_client_gets_no_credit_and_refresh_does_not_refill_budget():
     assert room.match.clock_debit[1] == pytest.approx(0)
 
 
-def test_rejected_stale_duplicate_and_cooldown_moves_never_refund_time():
+def test_rejected_stale_and_duplicate_moves_never_refund_time():
     room, clock = make_room()
     clock.advance(1)
     room.match.gs.active_trumps = [dict(owner=2, type='DESTROY_BLOCK', val=1)]
@@ -149,10 +149,24 @@ def test_rejected_stale_duplicate_and_cooldown_moves_never_refund_time():
     move(room)
     before = (room.match.remaining[1], room.seats[1].lag_budget, len(room.match.log))
     with pytest.raises(RoomError):
-        move(room)
+        move(room, 'TRUMP')
     with pytest.raises(RoomError):
         room.command(1, dict(type='action', action='DISCARD', index=0, revision=saved_revision, think_ms=0))
     assert (room.match.remaining[1], room.seats[1].lag_budget, len(room.match.log)) == before
+
+
+def test_fresh_web_revision_accepts_immediate_next_move_without_extra_refund():
+    room, clock = make_room()
+    clock.advance(1)
+    move(room)
+    before = (room.match.remaining[1], room.seats[1].lag_budget)
+    revision = room.revision
+    move(room)
+    assert room.revision > revision
+    assert len(room.match.gs.p1_trumps) == 8
+    assert (room.match.remaining[1], room.seats[1].lag_budget) == before
+    with pytest.raises(RoomError):
+        room.command(1, dict(type='action', action='DISCARD', index=0, revision=revision, think_ms=0))
 
 
 @pytest.mark.parametrize('think', [True, -1, 1.5, '0', 86400001])

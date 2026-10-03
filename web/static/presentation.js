@@ -32,10 +32,10 @@ function tone(kind) {
   });
 }
 
-export function deal(node, index = 0) {
+export function deal(node) {
   if (reduced()) return;
-  node.animate([{ opacity: 0, transform: 'translate(65px,-28px) rotate(13deg) scale(.92)' }, { opacity: 1, transform: 'none' }],
-    { duration: 460, delay: Math.min(index, 5) * 55, easing: 'cubic-bezier(.16,.7,.3,1)' });
+  node.animate([{ transform: 'translateY(-8px)' }, { transform: 'none' }],
+    { duration: 120, easing: 'ease-out' });
 }
 
 function burst(color, x, y) {
