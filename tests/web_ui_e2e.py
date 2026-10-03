@@ -19,7 +19,7 @@ OUT = ROOT / '.artifacts'
 # The move is still delivered to the server once; only its first browser update
 # is withheld. All protocol/auth/engine validation remains enabled.
 FAULTS = """(() => {
-  window.uiWire = { actions: 0, syncs: 0, retries: 0, deals: [] };
+  window.uiWire = { actions: 0, syncs: 0, retries: 0, deals: [], rematches: {} };
   window.WebSocket = new Proxy(window.WebSocket, { construct(Target, args) {
     const ws = Reflect.construct(Target, args);
     window.uiSocket = ws;
@@ -46,6 +46,7 @@ FAULTS = """(() => {
           }
           const before = document.querySelectorAll('#my-player .number-card').length;
           callback(event);
+          for (const player of data.players || []) if ('rematch' in player) window.uiWire.rematches[player.id] = player.rematch;
           const cards = document.querySelectorAll('#my-player .number-card');
           if (before > 0 && cards.length > before) {
             const card = cards[cards.length-1];
@@ -316,8 +317,9 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('#rematch')).to_be_visible()
             expect(a.locator('#turn-hint')).to_contain_text('本场结束')
             expect(a.locator('#stay')).to_be_disabled()
-            for page in [a, b]:
-                page.locator('#rematch').click()
+            a.locator('#rematch').click()
+            b.wait_for_function('window.uiWire.rematches[1] === true')
+            b.locator('#rematch').click()
             expect(a.locator('#rematch')).to_be_hidden()
             expect(a.locator('#game')).to_be_visible()
             # Check the ending controls with a freshly replenished full hand.
