@@ -187,6 +187,11 @@ class Room:
                               total=sum(hand) if p == pid or reveal else None,
                               trumps=list(getattr(gs, f"p{p}_trumps")) if p == pid else None,
                               trump_count=len(getattr(gs, f"p{p}_trumps")),
+                              # ADD_21 depends on a hidden opponent total. Do not
+                              # reveal that condition through a damage preview.
+                              stake=None if not reveal and any(t["type"] == "ADD_21" and
+                                      t["owner"] != pid and t["owner"] != p for t in gs.active_trumps)
+                              else gs.calculate_potential_damage(p),
                               stopped=getattr(gs, f"p{p}_stop"),
                               rematch=getattr(gs, f"p{p}_req_rematch"),
                               clock=self.match.remaining[p], preparation=self.match.preparation_remaining[p])

@@ -24,6 +24,7 @@ jobs:
       - run: python -m pytest tests -q
       - run: python tests/web_e2e.py
       - run: python tests/web_e2e.py --base-path /re7
+      - run: python tests/web_ui_e2e.py
       - run: NOIR_TRUSTED_PROXIES=127.0.0.1 docker compose -f compose.yaml -f deploy/compose.proxy.example.yaml config --quiet
       - run: NOIR_BASE_PATH=/re7 docker compose -p noir-web-ci up --build -d --wait
       - run: python tests/web_e2e.py --url http://127.0.0.1:8000/re7
@@ -36,3 +37,4 @@ jobs:
           path: |
             .artifacts/web-*.png
             .artifacts/web-network.json
+            .artifacts/web-ui-report.json
