@@ -143,7 +143,7 @@ def check_usability(url, short_auth=True):
                 a.wait_for_timeout(80)
                 a.locator('.trump-card').first.click()
                 geometry = a.evaluate("""() => {
-                  const ids = ['opponent', 'my-player', 'trump-hand', 'hit', 'stay', 'use-trump', 'discard-trump'];
+                  const ids = ['play-drop', 'opponent', 'my-player', 'trump-hand', 'hit', 'stay', 'use-trump', 'discard-trump'];
                   return {width: innerWidth, height: innerHeight,
                     documentWidth: document.documentElement.scrollWidth,
                     documentHeight: document.documentElement.scrollHeight,
@@ -157,6 +157,10 @@ def check_usability(url, short_auth=True):
                 for name, bounds in geometry['bounds'].items():
                     assert bounds['width'] > 0 and bounds['height'] > 0, (name, geometry)
                     assert bounds['x'] >= 0 and bounds['y'] >= 0 and bounds['right'] <= width + 1 and bounds['bottom'] <= height + 1, (name, geometry)
+                table = geometry['bounds']['play-drop']
+                for name in ['hit', 'stay', 'opponent', 'my-player']:
+                    bounds = geometry['bounds'][name]
+                    assert bounds['y'] >= table['y'] and bounds['bottom'] <= table['bottom'], ('table clips', name, geometry)
                 quality = a.evaluate("""() => {
                   const card=document.querySelector('#my-player .number-card'), hit=document.getElementById('hit');
                   return {numberHeight:card.getBoundingClientRect().height,
@@ -213,6 +217,21 @@ def check_usability(url, short_auth=True):
             assert_count(a, before - 4)
             report['gestures'].append('touch: right64px discards; no accidental hand scrolling')
             assert a.evaluate('scrollY') == 0
+
+            # Active field cards also consume space: controls must remain
+            # inside the table's clipping bounds, not just inside the viewport.
+            for width, height in [(320, 568), (390, 844), (844, 390), (1366, 768)]:
+                a.set_viewport_size({'width': width, 'height': height})
+                a.wait_for_timeout(80)
+                visible = a.evaluate("""() => {
+                  const table=document.getElementById('play-drop').getBoundingClientRect();
+                  return ['hit','stay'].map(id=>{
+                    const r=document.getElementById(id).getBoundingClientRect();
+                    return {id,top:r.top,bottom:r.bottom,tableTop:table.top,tableBottom:table.bottom};
+                  });
+                }""")
+                assert all(v['top'] >= v['tableTop'] and v['bottom'] <= v['tableBottom'] for v in visible), visible
+            a.set_viewport_size({'width': 390, 'height': 844})
 
             a.locator('.trump-card').first.click()
             expect(a.locator('#discard-trump')).to_be_enabled()

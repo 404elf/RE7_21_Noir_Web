@@ -1,5 +1,5 @@
 /* Cards, decisions and controls share one field of view. */
-body.playing { height:100dvh; overflow:hidden; --number-height:clamp(48px,calc((100dvh - 310px)/2.6),180px) }
+body.playing { height:100dvh; overflow:hidden; --number-height:clamp(48px,calc((100dvh - 400px)/2.8),180px) }
 body.playing .app-shell { width:calc(100% - 32px); max-width:1240px; height:100%; display:flex; flex-direction:column }
 body.playing .masthead { height:52px; min-height:52px; border:0 }
 body.playing .wordmark { font-size:19px }
@@ -31,7 +31,7 @@ body.playing .target-seal strong { font-size:38px; line-height:1 }
 body.playing .target-note { font-size:13px; color:var(--muted) }
 body.playing .player { min-height:0; padding:6px 0; display:flex; align-items:center; justify-content:center; gap:20px }
 body.playing #opponent { flex:1 }
-body.playing .mine-zone { flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:8px }
+body.playing .mine-zone { flex:none; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:8px }
 body.playing #my-player { flex:none }
 body.playing .player-heading { width:124px; flex:none; margin:0; display:block; min-width:0 }
 body.playing .player-heading>div { display:flex; flex-wrap:wrap; gap:7px; margin:7px 0 }
@@ -177,7 +177,14 @@ body.playing .drag-ghost { width:120px; height:98px; min-height:98px; pointer-ev
   body.playing .table-top { flex-direction:row }
   body.playing .target-seal strong { font-size:26px }
   body.playing .player-heading { width:100px }
-  body.playing .number-cards { max-width:calc(100% - 120px); padding:2px }
+  body.playing .player { padding:2px 0 }
+  body.playing .player-heading>div { margin:2px 0; gap:2px; line-height:1.2 }
+  body.playing .player-name { font-size:13px }
+  body.playing .health { font-size:12px }
+  body.playing .vitality { height:5px }
+  body.playing .clock:empty { display:none }
+  body.playing .mine-zone { flex:none; gap:4px }
+  body.playing .number-cards { max-width:calc(100% - 120px); padding:0 2px }
   body.playing .card-rank { font-size:8px; top:3px; left:4px }
   body.playing .card-rank.bottom { bottom:3px; right:4px }
   body.playing .card-private { font-size:5px }
