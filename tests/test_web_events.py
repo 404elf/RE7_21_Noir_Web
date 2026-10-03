@@ -9,6 +9,23 @@ from web.config import ROOT, load_rules
 from web.rooms import Room
 
 
+def test_bet_preview_matches_effects_without_revealing_add21_hidden_condition():
+    room = room_fixture()
+    gs = room.match.gs
+    gs.active_trumps = [dict(name='Add 1', type='ADD', owner=1, val=1)]
+    assert [p['stake'] for p in room.snapshot(1)['players']] == [1, 2]
+    gs.active_trumps = [dict(name='Add21', type='ADD_21', owner=1, val=21)]
+    gs.p1_hand = [10, 11]
+    before = room.snapshot(2)
+    assert before['players'][1]['stake'] is None
+    assert room.snapshot(1)['players'][1]['stake'] == 22
+    gs.p1_hand = [1, 11]  # Only the private card changes.
+    assert room.snapshot(2) == before
+    assert room.snapshot(1)['players'][1]['stake'] == 1
+    gs.phase = 'RESULT'
+    assert room.snapshot(2)['players'][1]['stake'] == 1
+
+
 class Socket:
     def __init__(self):
         self.messages = []

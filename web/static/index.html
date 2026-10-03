@@ -8,6 +8,7 @@
   <title>21 · NOIR — 双人牌局</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./game.css">
   <script type="module" src="./app.js"></script>
 </head>
 <body>
@@ -48,7 +49,7 @@
       </section>
 
       <section id="room" hidden>
-        <div class="room-heading"><div><p class="eyebrow">THE BASEMENT / PRIVATE TABLE</p><h1>牌桌 <span id="room-label"></span></h1></div><div class="room-links"><button id="room-settings" class="secondary">查看完整规则</button><button id="copy-invite" class="secondary">复制邀请链接 ↗</button><button id="leave-room" class="text-button">离席</button></div></div>
+        <div class="room-heading"><div><p class="eyebrow">THE BASEMENT / PRIVATE TABLE</p><h1>牌桌 <span id="room-label"></span></h1></div><div class="room-links"><button id="retry-connection" class="secondary" hidden>重新连接</button><button id="journal-open" class="secondary">战斗日志</button><button id="room-settings" class="secondary">房间规则</button><button id="copy-invite" class="secondary">邀请朋友 ↗</button><button id="leave-room" class="text-button">离席</button></div></div>
         <div id="notice" class="notice" role="status" aria-live="polite"></div>
         <div id="lobby" class="lobby panel">
           <div><p class="eyebrow">BEFORE THE FIRST HAND</p><h2>等你，也等一位对手。</h2><p class="muted">先查看房主的规则，双方确认并准备后开始。修改规则后需重新准备，开局后锁定。</p><div id="lobby-players" class="lobby-players"></div><button id="ready" class="primary" disabled>确认规则并准备</button><button id="edit-room-settings" class="text-button" hidden>修改房间规则 ↗</button></div>
@@ -59,18 +60,18 @@
             <div class="table panel">
               <div class="table-top"><span id="round-label" class="eyebrow"></span><span id="table-status">THE LAST HAND</span><span id="deck-label" class="muted"></span></div>
               <section id="opponent" class="player opponent" aria-label="对手牌区"></section>
-              <div id="opponent-effects" class="effects" aria-label="对手场上王牌"></div>
-              <div class="table-center" id="play-drop" data-drop="play"><div class="table-inscription">FORTUNE<br><small>FAVOURS THE BOLD</small></div><div class="target-seal"><span>本局目标</span><strong id="target">21</strong><small>THE LIMIT</small></div><div class="deck-stack" aria-hidden="true"><span>◆</span><small>NOIR</small></div><div id="table-verdict" class="table-verdict" hidden><small id="verdict-label"></small><strong id="verdict-title"></strong></div><span class="drop-label">松手打出王牌</span></div>
-              <div id="my-effects" class="effects" aria-label="我的场上王牌"></div>
+              <div class="field-effects" id="play-drop" data-drop="play"><strong>场上王牌</strong><div><small>对手</small><div id="opponent-effects" class="effects" aria-label="对手场上王牌"></div></div><div><small>你</small><div id="my-effects" class="effects" aria-label="我的场上王牌"></div></div></div>
+              <div id="table-verdict" class="table-verdict" hidden><small id="verdict-label"></small><strong id="verdict-title"></strong></div>
               <section id="my-player" class="player mine" aria-label="我的牌区"></section>
-              <div class="turn-actions"><p id="turn-hint"></p><div><button id="hit" class="primary">抽牌 <kbd>H</kbd></button><button id="stay" class="secondary">停牌 <kbd>S</kbd></button></div></div>
             </div>
-            <section class="trump-panel panel"><div class="section-heading"><h2><span class="eyebrow">YOUR ARSENAL</span>我的王牌 <small id="trump-count"></small></h2><span class="muted">点选查看 · 拖至牌桌出牌</span></div><div id="trump-hand" class="trump-hand"></div><div class="trump-detail"><div><strong id="selected-title">选择一张王牌</strong><p id="selected-description">出牌与弃牌不结束行动；出牌会解除对手的停牌。</p></div><div id="discard-drop" data-drop="discard"><button id="use-trump" class="primary" disabled>使用王牌 ↗</button><button id="discard-trump" class="text-button" disabled>弃牌</button><span class="drop-label">松手弃牌</span></div></div></section>
+            <section class="trump-panel panel"><div class="section-heading"><h2>我的王牌 <small id="trump-count"></small></h2><span id="gesture-hint" class="muted" aria-live="polite">上拉出牌 · 右拉弃牌 · 点选查看</span><div class="hand-pages"><button id="hand-prev" class="secondary" aria-label="上一页王牌">‹</button><span id="hand-page"></span><button id="hand-next" class="secondary" aria-label="下一页王牌">›</button></div></div><div id="trump-hand" class="trump-hand"></div></section>
           </div>
           <aside class="sidebar">
+            <section class="table-center panel"><div class="target-seal"><span>本局目标</span><strong id="target">21</strong><small>THE LIMIT</small></div><div class="target-note"><span id="stake-label"></span><small>双方连续停牌后结算<br>王牌不结束行动</small></div></section>
+            <section class="turn-actions panel"><p id="turn-hint" role="status" aria-live="polite"></p><div><button id="hit" class="primary">抽牌 <kbd>H</kbd></button><button id="stay" class="secondary">停牌 <kbd>S</kbd></button></div></section>
+            <section class="trump-detail panel"><div><span class="eyebrow">王牌效果</span><strong id="selected-title">选择一张王牌</strong><p id="selected-description">上拉出牌、右拉弃牌，也可点选后使用下方按钮。</p></div><div id="discard-drop" data-drop="discard"><button id="use-trump" class="primary" disabled>使用王牌 ↑</button><button id="discard-trump" class="secondary" disabled>弃牌 →</button></div></section>
             <section id="result-panel" class="panel result-panel" hidden><p class="eyebrow">THE VERDICT</p><h2 id="result-title"></h2><p id="result-text"></p><button id="rematch" class="primary wide" hidden>再来一场</button></section>
-            <section class="panel journal"><div class="section-heading"><h2><span class="eyebrow">THE CHRONICLE</span>牌局记录</h2><span class="small-mark">LIVE</span></div><ol id="events"></ol></section>
-            <section class="panel small-panel"><h3>牌桌约定</h3><p>首张数字牌为暗牌，结算时揭晓。双方连续停牌后结算；爆牌后仍可使用王牌自救。</p><p>输家扣除赌注对应生命值。双方都爆牌时，点数较小的一方获胜。</p><div id="draw-request" hidden><p id="draw-request-text"></p><button id="accept-draw" class="secondary">接受求和</button><button id="decline-draw" class="text-button">拒绝</button></div><div class="match-controls"><button id="offer-draw" class="text-button">提出求和</button><button id="surrender" class="text-button danger">投降</button></div></section>
+            <section class="match-options"><div id="draw-request" hidden><p id="draw-request-text"></p><button id="accept-draw" class="secondary">接受求和</button><button id="decline-draw" class="text-button">拒绝</button></div><div class="match-controls"><button id="offer-draw" class="text-button">提出求和</button><button id="surrender" class="text-button danger">投降</button></div></section>
           </aside>
         </div>
       </section>
@@ -92,5 +93,6 @@
     </form>
   </dialog>
   <dialog id="confirm-dialog"><p class="eyebrow">YOUR NEXT MOVE</p><h2 id="confirm-title"></h2><p id="confirm-copy"></p><div class="confirm-actions"><button id="confirm-cancel" class="secondary">留在牌桌</button><button id="confirm-ok" class="primary">确认</button></div></dialog>
+  <dialog id="journal-dialog" class="journal"><div class="dialog-heading"><h2>战斗日志</h2><button id="journal-close" class="secondary">关闭 ×</button></div><ol id="events"></ol></dialog>
 </body>
 </html>

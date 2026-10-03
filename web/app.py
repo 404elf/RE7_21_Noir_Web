@@ -16,6 +16,7 @@ from web.config import ROOT, customization_options, load_clock, load_rules, sett
 from web.rooms import RoomError, RoomService
 
 HEARTBEAT_TIMEOUT = 45
+AUTH_TIMEOUT = 15
 
 
 def create_app(*, config_path=None, timer_path=None, service_options=None, base_path=None):
@@ -168,7 +169,7 @@ def create_app(*, config_path=None, timer_path=None, service_options=None, base_
             service.connections += 1
             counted = True
             await socket.accept()
-            raw = await asyncio.wait_for(socket.receive_text(), 5)
+            raw = await asyncio.wait_for(socket.receive_text(), AUTH_TIMEOUT)
             if len(raw.encode("utf-8")) > 2048:
                 raise RoomError("请求太大。")
             auth = json.loads(raw)
@@ -209,10 +210,10 @@ def create_app(*, config_path=None, timer_path=None, service_options=None, base_
         except asyncio.TimeoutError:
             try:
                 if not attached:
-                    await socket.send_json({"type": "fatal", "message": "席位认证超时。"})
+                    await socket.send_json({"type": "retry", "message": "认证响应超时，正在重新连接。"})
                 # An authenticated heartbeat timeout is recoverable. Do not send
                 # 'fatal': the browser must retain its seat for the grace period.
-                await socket.close(code=1012 if attached else 1008)
+                await socket.close(code=1012)
             except (RuntimeError, OSError, WebSocketDisconnect):
                 pass
         except (RoomError, ValueError, KeyError) as exc:

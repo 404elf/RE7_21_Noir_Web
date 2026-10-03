@@ -170,6 +170,22 @@ def test_heartbeat_timeout_retains_seat_for_reconnect(app, monkeypatch):
             assert after["players"][0]["name"] == "Host"
 
 
+def test_auth_timeout_is_retryable_and_preserves_reserved_seat(app, monkeypatch):
+    monkeypatch.setattr("web.app.AUTH_TIMEOUT", .05)
+    with TestClient(app) as client:
+        host = client.post("/api/rooms", json={"name": "Host"}).json()
+        path = f"/ws/{host['room']}"
+        with client.websocket_connect(path, headers=ORIGIN) as ws:
+            assert ws.receive_json()["type"] == "retry"
+            with pytest.raises(WebSocketDisconnect) as error:
+                ws.receive_json()
+            assert error.value.code == 1012
+        with client.websocket_connect(path, headers=ORIGIN) as ws:
+            restored = authenticate(ws, host)
+            assert restored["pid"] == 1
+            assert restored["players"][0]["name"] == "Host"
+
+
 def test_room_reservations_origins_and_bad_input(app):
     with TestClient(app) as client:
         assert client.post("/api/rooms", json={"name": "x"}, headers={"origin": "https://evil.example"}).status_code == 403
