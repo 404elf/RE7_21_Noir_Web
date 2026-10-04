@@ -60,7 +60,9 @@ def check_customization(url):
             a.locator('#setting-round_reward_trumps_count').fill('0')
             a.locator('#setting-number_card_draw_probability').fill('0')
             a.locator('[data-settings-tab="weights"]').click()
-            a.locator('#settings-weights input[type=checkbox]').evaluate_all('nodes => nodes.forEach(n => n.checked = false)')
+            # Fixture setup includes rows on other pages. The live checkbox
+            # change handler writes zero to its numeric weight.
+            a.locator('#settings-weights input[type=number]').evaluate_all('nodes => nodes.forEach(n => n.value = "0")')
             a.locator('#settings-weight-search').fill('加注 1')
             a.locator('[id="weight-Add 1"]').fill('1')
             a.locator('#settings-weight-search').fill('ADD2+')
