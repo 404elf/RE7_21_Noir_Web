@@ -1,5 +1,5 @@
 import { receive } from './transport.js';
-import { deal, feedback, toggleSound } from './presentation.js';
+import { deal, feedback, submitted, clockFeedback, toggleSound, clearFeedback } from './presentation.js';
 import { SettingsEditor, settingsSummary } from './settings.js';
 import { gestureAction } from './gestures.js';
 const appRoot = new URL('./', import.meta.url);
@@ -110,7 +110,7 @@ function connect() {
           (acknowledged || data.type === 'state' || previous?.turn !== next.turn || previous?.phase !== next.phase ||
            previous?.round !== next.round || previous?.match_id !== next.match_id)) decisionStarted = performance.now();
       connection('已连接 · 私人牌桌');
-      render();
+      render(data.type === 'patch');
       if (data.type === 'patch') feedback(previous, state);
     } else if (data.type === 'pong') {
       if (data.probe) ws.send(JSON.stringify({ type: 'probe_ack', probe: data.probe }));
@@ -159,6 +159,7 @@ function send(type, action, index) {
   if (index !== undefined) message.index = index;
   socket.send(JSON.stringify(message));
   updateControls();
+  submitted(action, index === undefined ? null : $('trump-hand').querySelector(`[data-index="${index}"]`));
 }
 
 function reconnect() {
@@ -181,7 +182,7 @@ function checkResponse() {
   if (now - lastReceived > 25000 || pending && now - pending.started > 12000) reconnect();
 }
 
-function render() {
+function render(animate = false) {
   settingsEditor.refreshRoom({ config: state.rules, timer: state.timer });
   $('home').hidden = true; $('room').hidden = false;
   $('lobby').hidden = state.phase !== 'LOBBY'; $('game').hidden = state.phase === 'LOBBY';
@@ -194,7 +195,7 @@ function render() {
   if (rendered !== state.revision) {
     rendered = state.revision;
     if (state.phase === 'LOBBY') renderLobby();
-    else renderGame();
+    else renderGame(animate);
   }
   updateClocks(); updateControls();
 }
@@ -212,7 +213,7 @@ function renderLobby() {
   $('edit-room-settings').hidden = state.pid !== 1;
 }
 
-function renderPlayer(p, mine) {
+function renderPlayer(p, mine, animate) {
   const root = $(mine ? 'my-player' : 'opponent');
   const heading = element('div', null, 'player-heading');
   const label = element('div');
@@ -254,14 +255,14 @@ function renderPlayer(p, mine) {
   total.append(element('strong', p.total === null ? '? + ' + p.hand.slice(1).reduce((a, b) => a + b, 0) : String(p.total)), element('small', p.total === null ? '明牌点数' : p.total > state.target ? '已爆牌' : '当前点数'));
   oldCards.forEach((card) => card.remove()); cards.querySelector('.total')?.remove();
   root.querySelector(':scope > .total')?.remove(); root.append(total);
-  added.forEach((card) => deal(card));
+  if (animate) added.forEach((card) => deal(card));
 }
 
-function renderGame() {
+function renderGame(animate = false) {
   $('round-label').textContent = `ROUND ${String(state.round).padStart(2, '0')}`;
   $('deck-label').textContent = `牌堆剩余 ${state.deck_count} 张`;
   $('target').textContent = state.target;
-  state.players.forEach((p) => renderPlayer(p, p.id === state.pid));
+  state.players.forEach((p) => renderPlayer(p, p.id === state.pid, animate));
   renderMatchStatus();
   renderFieldTrumps();
   document.querySelector('.field-effects').hidden = false;
@@ -419,6 +420,8 @@ function updateClocks() {
     $(`clock-status-${p.id}`).textContent = !state.timer.enabled ? '' : state.paused ? '暂停' : confirming ? '确认中' : prep ? '准备' : active ? '计时中' : '等待';
     $(`clock-row-${p.id}`).classList.toggle('active', Boolean(state.timer.enabled && active && !state.paused));
     node.classList.toggle('urgent', left !== null && left <= 10 && active);
+    if (p.id === state.pid) clockFeedback(`${state.match_id}:${state.round}:${prep}`, seconds,
+      Boolean(state.timer.enabled && active && online && !syncing && !state.paused && state.phase === 'ACTION'), node);
   }
   if (state.paused) {
     const left = Math.max(0, Math.ceil((state.reconnect_seconds || 0) - (performance.now() - state.receivedAt) / 1000));
@@ -508,6 +511,7 @@ $('leave-room').onclick = async () => {
   saveSeat(null); state = null; rendered = -1; pending = null; online = false; selected = null;
   $('home').hidden = false; $('room').hidden = true; history.replaceState(null, '', appRoot); connection('双人在线牌局');
   document.body.classList.remove('playing');
+  clearFeedback();
 };
 $('retry-connection').onclick = reconnect;
 $('journal-open').onclick = () => $('journal-dialog').showModal();

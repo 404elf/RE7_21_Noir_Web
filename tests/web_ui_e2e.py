@@ -19,7 +19,26 @@ OUT = ROOT / '.artifacts'
 # The move is still delivered to the server once; only its first browser update
 # is withheld. All protocol/auth/engine validation remains enabled.
 FAULTS = """(() => {
-  window.uiWire = { actions: 0, syncs: 0, retries: 0, deals: [], rematches: {} };
+  window.uiWire = { actions: 0, syncs: 0, retries: 0, deals: [], snapshots: [], rematches: {} };
+  window.uiAudio = { contexts: 0, started: 0, active: 0, peak: 0, cutOff: 0 };
+  const Audio = window.AudioContext;
+  window.AudioContext = class extends Audio {
+    constructor(...args) { super(...args); window.uiAudio.contexts++; }
+    track(source) {
+      const start = source.start.bind(source);
+      source.start = (...args) => {
+        window.uiAudio.started++; window.uiAudio.active++;
+        window.uiAudio.peak = Math.max(window.uiAudio.peak, window.uiAudio.active);
+        return start(...args);
+      };
+      const stop = source.stop.bind(source);
+      source.stop = (...args) => { if (!args.length) window.uiAudio.cutOff++; return stop(...args); };
+      source.addEventListener('ended', () => window.uiAudio.active--);
+      return source;
+    }
+    createOscillator() { return this.track(super.createOscillator()); }
+    createBufferSource() { return this.track(super.createBufferSource()); }
+  };
   window.WebSocket = new Proxy(window.WebSocket, { construct(Target, args) {
     const ws = Reflect.construct(Target, args);
     window.uiSocket = ws;
@@ -46,6 +65,12 @@ FAULTS = """(() => {
           }
           const before = document.querySelectorAll('#my-player .number-card').length;
           callback(event);
+          if (window.uiMuteOnResult && data.changes?.phase === 'GAMEOVER') {
+            window.uiMuteOnResult = false;
+            document.getElementById('sound-toggle').click();
+          }
+          if (data.type === 'state') window.uiWire.snapshots.push(
+            [...document.querySelectorAll('.number-card')].reduce((sum, node) => sum + node.getAnimations().length, 0));
           for (const player of data.players || []) if ('rematch' in player) window.uiWire.rematches[player.id] = player.rematch;
           const cards = document.querySelectorAll('#my-player .number-card');
           if (before > 0 && cards.length > before) {
@@ -196,6 +221,10 @@ def check_usability(url, short_auth=True, network=False):
                     a.screenshot(path=str(OUT / f'web-ui-detail-{width}x{height}.png'), animations='disabled')
 
             a.set_viewport_size({'width': 1440, 'height': 900})
+            assert a.evaluate('window.uiAudio.contexts') == 0, 'Sound must be opt-in, with no idle audio engine'
+            a.locator('#sound-toggle').click()
+            expect(a.locator('#sound-toggle')).to_have_attribute('aria-pressed', 'true')
+            a.wait_for_function('() => window.uiAudio.started > 0')
             expect(a.locator('.trump-card')).to_have_count(6)
             a.locator('#hand-next').click()
             expect(a.locator('.trump-card')).to_have_count(2)
@@ -302,6 +331,8 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('.hand-pages')).to_be_hidden()
             assert a.locator('.trump-panel').bounding_box()['height'] <= 42
             report['rapid_discards_ms'] = rapid
+            a.wait_for_function('() => window.uiAudio.active === 0')
+            assert a.evaluate('window.uiAudio.peak') <= 12, 'Rapid moves must not accumulate audio'
             a.locator('#hit').click()
             expect(b.locator('#stay')).to_be_enabled()
             expect(a.locator('#my-player .number-card')).to_have_count(3)
@@ -312,15 +343,47 @@ def check_usability(url, short_auth=True, network=False):
             assert a.evaluate("getComputedStyle(document.querySelector('#my-player .number-cards'),'::after').content") in ['none','normal']
             print(f'PASS: three rapid confirmed discards in {rapid[-1]:.1f}ms; no duplicate submission; draw fully visible on first receipt', flush=True)
 
+            # A restored table must not replay deals/sounds. Saved opt-in still
+            # requires a trusted input before an audio engine is created.
+            a.reload()
+            expect(a.locator('#my-player .number-card')).to_have_count(3)
+            expect(a.locator('#sound-toggle')).to_have_attribute('aria-pressed', 'true')
+            assert a.evaluate('window.uiWire.snapshots.at(-1)') == 0
+            assert a.evaluate('window.uiAudio.contexts') == 0
+            a.emulate_media(reduced_motion='reduce')
+            assert a.evaluate("document.querySelectorAll('.number-card').length") == 5
+            b.locator('#hit').click()
+            expect(a.locator('#opponent .number-card')).to_have_count(3)
+            assert a.evaluate("[...document.querySelectorAll('.number-card')].every(n => !n.getAnimations().length)")
+            # Muting stops currently playing sources as well as future sounds.
+            a.locator('#sound-toggle').click()
+            a.wait_for_function('() => window.uiAudio.active === 0')
+            played = a.evaluate('window.uiAudio.started')
+            a.locator('#stay').click()
+            expect(b.locator('#stay')).to_be_enabled()
+            assert a.evaluate('window.uiAudio.started') == played
+            a.emulate_media(reduced_motion='no-preference')
+            a.locator('#sound-toggle').click()
+            a.wait_for_function('() => window.uiAudio.started > 0')
+            report['presentation'] = {'opt_in': True, 'saved_preference': True, 'snapshot_replay': False,
+                                      'reduced_motion': True, 'mute_stops_audio': True}
+
             a.locator('#journal-open').click()
             expect(a.locator('#journal-dialog')).to_be_visible()
             expect(a.locator('#events li')).not_to_have_count(0)
             a.locator('#journal-close').click()
+            # Mute in the same received-result task, while all three verdict
+            # notes are scheduled. This verifies immediate stop, not just quiet
+            # after their natural duration. The actual match still ends normally.
+            a.evaluate('window.uiMuteOnResult = true')
             a.locator('#surrender').click()
             a.locator('#confirm-ok').click()
             expect(a.locator('#rematch')).to_be_visible()
             expect(a.locator('#turn-hint')).to_contain_text('本场结束')
             expect(a.locator('#stay')).to_be_disabled()
+            expect(a.locator('#sound-toggle')).to_have_attribute('aria-pressed', 'false')
+            assert a.evaluate('window.uiAudio.cutOff') >= 3
+            a.wait_for_function('() => window.uiAudio.active === 0')
             a.locator('#rematch').click()
             b.wait_for_function('() => window.uiWire.rematches[1] === true')
             b.locator('#rematch').click()
