@@ -315,7 +315,7 @@ body.playing .trump-detail p { overflow:visible; max-height:none; flex:none }
   #settings-dialog.settings-readonly[data-active-tab="game"] { height:min(640px,90dvh) }
   #settings-dialog[data-active-tab="timer"] { height:min(700px,90dvh) }
   #settings-dialog[data-active-tab="timer"][data-timer-view="custom"] { height:min(560px,90dvh) }
-  #settings-dialog.settings-readonly[data-active-tab="timer"][data-timer-view="custom"] { height:min(500px,90dvh) }
+  #settings-dialog.settings-readonly[data-active-tab="timer"][data-timer-view="custom"] { height:min(540px,90dvh) }
   #settings-game { gap:8px 24px }
   #settings-game .setting-field { min-height:50px; font-size:15px }
   #settings-game input { height:38px; font-size:16px }
