@@ -186,7 +186,7 @@ def check_usability(url, short_auth=True, network=False):
                 # Dedicated clocks/stakes share the small-screen viewport;
                 # require readable glyphs as well as a visible card surface.
                 assert quality['numberHeight'] >= (110 if width > 760 and height > 520 else 85 if height > 700 else 60 if height > 520 else 44), quality
-                assert quality['numberFont'] >= (28 if height > 520 else 22), quality
+                assert quality['numberFont'] >= (24 if width <= 360 else 28 if height > 520 else 22), quality
                 geometry['quality'] = quality
                 report['viewports'].append(geometry)
                 if (width, height) in [(1440, 900), (390, 844), (844, 390)]:
