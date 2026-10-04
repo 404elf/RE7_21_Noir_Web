@@ -197,7 +197,7 @@ export class SettingsEditor {
     $('timer-custom').hidden = this.timerView !== 'custom';
     $('timer-preset-view').hidden = this.timerView === 'custom';
     $('timer-preset-summary').textContent = choice === 'off' ? '当前：不限时' : choice === 'custom' ? '自定义计时与亮牌等待'
-      : `当前：${choice} · 整场 ${timer.initial_minutes} 分钟，抽牌或停牌后加 ${timer.increment_seconds} 秒。首局准备 30 秒，结算暂停。`;
+      : `当前：${choice} · 整场 ${timer.initial_minutes} 分钟，抽牌或停牌后加 ${timer.increment_seconds} 秒。首局准备${timer.preparation_seconds === null ? '不限时' : ` ${timer.preparation_seconds} 秒`}，结算暂停。`;
   }
 
   refreshRoom(value) {
