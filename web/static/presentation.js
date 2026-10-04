@@ -171,9 +171,19 @@ export function feedback(previous, next) {
       player.total > next.target ? '#d76f52' : player.total === next.target ? '#efd496' : '#d5b278');
   }
   if (sameMatch && next.target !== previous.target) accent($('target'));
+  if (sameMatch) {
+    const held = new Map();
+    for (const [name] of previous.players.find((p) => p.id === next.pid).trumps || []) held.set(name, (held.get(name) || 0) + 1);
+    next.players.find((p) => p.id === next.pid).trumps.forEach(([name], index) => {
+      if (held.get(name)) { held.set(name, held.get(name) - 1); return; }
+      const card = $('trump-hand').querySelector(`[data-index="${index}"]`);
+      animate(card, [{ boxShadow: 'inset 0 0 0 1px #e8c88d' }, { boxShadow: 'inset 0 0 0 0 transparent' }], 180);
+    });
+  }
   const trump = fresh.findLast((e) => e.event === 'trump');
   if (trump) {
-    const effect = [...document.querySelectorAll('.effect')].findLast((node) => node.dataset.name === trump.card);
+    const effect = [...document.querySelectorAll('.effect')].findLast((node) => node.dataset.name === trump.card &&
+      node.classList.contains('owned') === (trump.pid === next.pid));
     animate(effect, [{ boxShadow: 'inset 0 0 0 1px #e8c88d', transform: 'translateY(3px)' },
       { boxShadow: 'inset 0 0 0 0 transparent', transform: 'none' }], 160);
   }
