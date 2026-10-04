@@ -7,9 +7,13 @@
 
 初始导出保持 `re7_21.py`、`match.py`、`cards.py`、`presentation_rules.py`、`rules.py`、`app_paths.py`、`config.json` 和 `timer.json` 与上述 Web 开发提交逐字节一致。`re7_21.py` 保留上游结构，包含未用于 Web 运行入口的历史桌面/TCP 定义；Web 只调用其中的 GameState 规则。Pygame 导入为可选，不属于本仓库的运行或测试依赖。
 
-Web 服务、前端、Docker、部署示例和 Web 测试由原开发分支迁入；README、CI 和说明已调整为独立 Web 项目。原桌面打包、自动更新、历史文件和 AI 不在本仓库运行范围内。
+Web 服务、前端、Docker、部署示例和 Web 测试由原开发分支迁入；README、CI 和说明已调整为独立 Web 项目。原桌面打包、自动更新和历史文件不在本仓库运行范围内。
 
 玩家自定义功能复用同一来源提交下的 `presets/` 全部 8 份 JSON，原样保留预设内容。房间校验与网页编辑入口位于 `web/`，共享规则引擎与根目录默认配置保持不变。
+
+人机补入自同一源提交的 `bot.py`（仅 `Observation` / `observe` / `Strategy`，移除 TCP BotSession 及 socket/threading/time 导入）和完整 `tactics.py`；算法保持原样，由 `web/ai.py` 在独立进程中按房间规则计算。四档难度、三种风格以及极难不区分风格的语义保留；Web 增加计算容量、过时结果和 Linux 超预算保护。
+
+Web 牌桌重新以 `main.py` 的对手／场牌／自己、底部六张王牌及右侧操作分区为基准；响应式排版和按内容显示效果说明属于浏览器适配。
 
 `tests/test_match_core.py` 从原 `tests/test_match.py` 保留 8 项无桌面依赖的 MatchTests：行动/整场/每局计时、加秒、结算、再战、日志隐私、效果一致性及配置校验。只移除了依赖桌面历史与 TCP 的两项测试和对应导入；保留测试的方法体与断言不变。原完整桌面测试仍在上游仓库。
 

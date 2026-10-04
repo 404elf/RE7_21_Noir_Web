@@ -19,7 +19,7 @@ OUT = ROOT / '.artifacts'
 # The move is still delivered to the server once; only its first browser update
 # is withheld. All protocol/auth/engine validation remains enabled.
 FAULTS = """(() => {
-  window.uiWire = { actions: 0, syncs: 0, retries: 0, deals: [] };
+  window.uiWire = { actions: 0, syncs: 0, retries: 0, deals: [], rematches: {} };
   window.WebSocket = new Proxy(window.WebSocket, { construct(Target, args) {
     const ws = Reflect.construct(Target, args);
     window.uiSocket = ws;
@@ -46,6 +46,7 @@ FAULTS = """(() => {
           }
           const before = document.querySelectorAll('#my-player .number-card').length;
           callback(event);
+          for (const player of data.players || []) if ('rematch' in player) window.uiWire.rematches[player.id] = player.rematch;
           const cards = document.querySelectorAll('#my-player .number-card');
           if (before > 0 && cards.length > before) {
             const card = cards[cards.length-1];
@@ -93,7 +94,7 @@ def assert_count(page, expected):
     expect(page.locator('#trump-count')).to_contain_text(f'{expected} /')
 
 
-def check_usability(url, short_auth=True):
+def check_usability(url, short_auth=True, network=False):
     OUT.mkdir(exist_ok=True)
     errors = []
     report = {'viewports': [], 'gestures': [], 'recovery': {}}
@@ -131,19 +132,22 @@ def check_usability(url, short_auth=True):
             assert a.evaluate('window.uiWire.retries') == (1 if short_auth else 0)
             report['recovery']['auth_timeout'] = 'same reserved seat recovered automatically' if short_auth else 'production auth threshold unchanged'
             a.locator('#ready').click()
+            expect(b.locator('#lobby-players .lobby-seat').first).to_contain_text('已准备')
             b.locator('#ready').click()
             expect(a.locator('#game')).to_be_visible()
             expect(a.locator('#stay')).to_be_enabled()
             assert_count(a, 8)
             expect(a.locator('.trump-detail')).to_be_hidden()
-            expect(a.locator('.field-effects')).to_be_hidden()
+            expect(a.locator('.field-effects')).to_be_visible()
+            expect(a.locator('.empty-effects')).to_have_count(1)
 
             for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390)]:
                 a.set_viewport_size({'width': width, 'height': height})
                 a.wait_for_timeout(80)
+                before_select = a.locator('#hit').bounding_box()
                 a.locator('.trump-card').first.click()
                 geometry = a.evaluate("""() => {
-                  const ids = ['play-drop', 'opponent', 'my-player', 'trump-hand', 'hit', 'stay', 'use-trump', 'discard-trump'];
+                  const ids = ['play-drop', 'opponent', 'my-player', 'trump-hand', 'hit', 'stay', 'match-clocks', 'stake-label'];
                   return {width: innerWidth, height: innerHeight,
                     documentWidth: document.documentElement.scrollWidth,
                     documentHeight: document.documentElement.scrollHeight,
@@ -158,24 +162,35 @@ def check_usability(url, short_auth=True):
                     assert bounds['width'] > 0 and bounds['height'] > 0, (name, geometry)
                     assert bounds['x'] >= 0 and bounds['y'] >= 0 and bounds['right'] <= width + 1 and bounds['bottom'] <= height + 1, (name, geometry)
                 table = geometry['bounds']['play-drop']
-                for name in ['hit', 'stay', 'opponent', 'my-player']:
+                for name in ['opponent', 'my-player']:
                     bounds = geometry['bounds'][name]
                     assert bounds['y'] >= table['y'] and bounds['bottom'] <= table['bottom'], ('table clips', name, geometry)
                 quality = a.evaluate("""() => {
                   const card=document.querySelector('#my-player .number-card'), hit=document.getElementById('hit');
                   return {numberHeight:card.getBoundingClientRect().height,
                     titleFont:parseFloat(getComputedStyle(document.querySelector('.trump-card strong')).fontSize),
+                    numberFont:parseFloat(getComputedStyle(card.querySelector('.card-number')).fontSize),
                     actionGap:hit.getBoundingClientRect().top-card.getBoundingClientRect().bottom,
-                    selectable:getComputedStyle(document.getElementById('game')).userSelect};
+                    selectable:getComputedStyle(document.getElementById('game')).userSelect,
+                    overlayFree:['hit','stay'].every(id=>{const button=document.getElementById(id),r=button.getBoundingClientRect(),point=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2); return button===point || button.contains(point);})};
                 }""")
                 assert quality['selectable'] == 'none', quality
-                assert 0 <= quality['actionGap'] <= 55, quality
+                assert quality['overlayFree'], quality
+                if width > 760 and height > 520:
+                    assert geometry['bounds']['hit']['x'] >= table['right'], geometry
+                    assert abs(geometry['bounds']['hit']['y'] - before_select['y']) < 1, geometry
+                    assert geometry['bounds']['hit']['y'] >= geometry['bounds']['my-player']['y'] - 50, geometry
+                else:
+                    assert quality['actionGap'] >= 0 or height <= 520, quality
                 assert quality['titleFont'] >= (16 if width <= 760 else 17), quality
-                assert quality['numberHeight'] >= (110 if width > 760 and height > 520 else 85 if height > 520 else 48), quality
+                # Dedicated clocks/stakes share the small-screen viewport;
+                # require readable glyphs as well as a visible card surface.
+                assert quality['numberHeight'] >= (110 if width > 760 and height > 520 else 85 if height > 700 else 60 if height > 520 else 44), quality
+                assert quality['numberFont'] >= (24 if width <= 360 else 28 if height > 520 else 22), quality
                 geometry['quality'] = quality
                 report['viewports'].append(geometry)
                 if (width, height) in [(1440, 900), (390, 844), (844, 390)]:
-                    a.locator('#detail-close').click()
+                    a.keyboard.press('Escape')
                     a.screenshot(path=str(OUT / f'web-ui-{width}x{height}.png'), animations='disabled')
                     a.locator('.trump-card').first.click()
                     a.screenshot(path=str(OUT / f'web-ui-detail-{width}x{height}.png'), animations='disabled')
@@ -195,11 +210,11 @@ def check_usability(url, short_auth=True):
             assert held_count(a) == before, 'Left/down movement must not discard'
             mouse_drag(a, 0, -40)
             assert_count(a, before - 1)
-            expect(a.locator('#my-effects .effect')).to_have_count(1)
-            expect(a.locator('#stake-label')).to_contain_text('2 / 1')
+            expect(a.locator('#field-trumps .effect')).to_have_count(1)
+            expect(a.locator('#stake-label > div').first.locator('strong')).to_have_text('2')
             report['gestures'].append('mouse: up40px plays without reaching table')
             a.locator('.trump-card').first.click()
-            expect(a.locator('#discard-trump')).to_be_enabled()
+            expect(a.locator('#stay')).to_be_enabled()
             mouse_drag(a, 60, 0)
             assert_count(a, before - 2)
             report['gestures'].append('mouse: right60px discards without a drop target')
@@ -207,12 +222,12 @@ def check_usability(url, short_auth=True):
             a.set_viewport_size({'width': 390, 'height': 844})
             expect(a.locator('.trump-card')).to_have_count(3)
             a.locator('.trump-card').first.click()
-            expect(a.locator('#use-trump')).to_be_enabled()
+            expect(a.locator('#stay')).to_be_enabled()
             touch_drag(a, 0, -44)
             assert_count(a, before - 3)
             report['gestures'].append('touch: up44px plays; browser page does not scroll')
             a.locator('.trump-card').first.click()
-            expect(a.locator('#discard-trump')).to_be_enabled()
+            expect(a.locator('#stay')).to_be_enabled()
             touch_drag(a, 64, 0)
             assert_count(a, before - 4)
             report['gestures'].append('touch: right64px discards; no accidental hand scrolling')
@@ -227,23 +242,23 @@ def check_usability(url, short_auth=True):
                   const table=document.getElementById('play-drop').getBoundingClientRect();
                   return ['hit','stay'].map(id=>{
                     const r=document.getElementById(id).getBoundingClientRect();
-                    return {id,top:r.top,bottom:r.bottom,tableTop:table.top,tableBottom:table.bottom};
+                    return {id,top:r.top,bottom:r.bottom,tableTop:0,tableBottom:innerHeight};
                   });
                 }""")
                 assert all(v['top'] >= v['tableTop'] and v['bottom'] <= v['tableBottom'] for v in visible), visible
             a.set_viewport_size({'width': 390, 'height': 844})
 
             a.locator('.trump-card').first.click()
-            expect(a.locator('#discard-trump')).to_be_enabled()
+            expect(a.locator('#stay')).to_be_enabled()
             a.evaluate('window.holdNextPatch = true')
             old_actions = a.evaluate('window.uiWire.actions')
             started = time.monotonic()
-            a.locator('#discard-trump').click()
+            a.locator('.trump-card').first.press('ArrowRight')
             expect(a.locator('#turn-hint')).to_contain_text('正在确认弃牌')
-            expect(a.locator('#discard-trump')).to_have_attribute('aria-busy', 'true')
+            expect(a.locator('.trump-card.pending')).to_have_attribute('aria-busy', 'true')
             assert_count(a, before - 5)
             a.locator('.trump-card').first.click()
-            expect(a.locator('#discard-trump')).to_be_enabled()
+            expect(a.locator('#stay')).to_be_enabled()
             assert a.evaluate('window.uiWire.actions') == old_actions + 1, 'Recovery must not replay the move'
             assert a.evaluate('window.uiWire.syncs') >= 1
             report['recovery']['withheld_update_seconds'] = round(time.monotonic() - started, 3)
@@ -262,15 +277,24 @@ def check_usability(url, short_auth=True):
                 else next();
               });
               const next=()=>{
-                document.querySelector('.trump-card').click();
-                const button=document.getElementById('discard-trump');
-                if(button.disabled) {observer.disconnect();reject('Fresh revision stayed locked');return;}
-                button.click();button.click(); // One outstanding command only.
+                const card=document.querySelector('.trump-card');
+                card.focus();card.click();
+                if(document.getElementById('stay').disabled) {observer.disconnect();reject('Fresh revision stayed locked');return;}
+                document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
+                document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true})); // One outstanding command only.
               };
               const timeout=setTimeout(()=>{observer.disconnect();reject('Rapid actions stalled');},5000);
               observer.observe(counter,{childList:true});next();
             })""")
-            assert len(rapid) == 3 and rapid[-1] < 400, rapid
+            rtt = a.evaluate("Number(document.getElementById('connection').textContent.match(/(\\d+)ms/)?.[1])") if network else 0
+            if network:
+                assert rtt > 0, 'A measured RTT is required for network acceptance'
+            # Keep the local 400ms regression. Remote confirmed actions also
+            # include three real round trips; do not call that UI cooldown.
+            budget = 400 + 3*rtt
+            assert len(rapid) == 3 and rapid[-1] < budget, (rapid, rtt, budget)
+            report['rapid_network_rtt_ms'] = rtt
+            report['rapid_budget_ms'] = budget
             assert a.evaluate('window.uiWire.actions') == old_actions + 3
             assert_count(a, 0)
             expect(a.locator('.trump-detail')).to_be_hidden()
@@ -292,18 +316,17 @@ def check_usability(url, short_auth=True):
             expect(a.locator('#journal-dialog')).to_be_visible()
             expect(a.locator('#events li')).not_to_have_count(0)
             a.locator('#journal-close').click()
-            a.locator('#match-menu summary').click()
             a.locator('#surrender').click()
             a.locator('#confirm-ok').click()
             expect(a.locator('#rematch')).to_be_visible()
             expect(a.locator('#turn-hint')).to_contain_text('本场结束')
             expect(a.locator('#stay')).to_be_disabled()
-            for page in [a, b]:
-                page.locator('#rematch').click()
+            a.locator('#rematch').click()
+            b.wait_for_function('() => window.uiWire.rematches[1] === true')
+            b.locator('#rematch').click()
             expect(a.locator('#rematch')).to_be_hidden()
             expect(a.locator('#game')).to_be_visible()
             # Check the ending controls with a freshly replenished full hand.
-            a.locator('#match-menu summary').click()
             a.locator('#surrender').click(); a.locator('#confirm-ok').click()
             expect(a.locator('#rematch')).to_be_visible()
             for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390)]:
@@ -312,7 +335,7 @@ def check_usability(url, short_auth=True):
                 result = a.evaluate("""() => {
                   const table=document.getElementById('play-drop').getBoundingClientRect();
                   const button=document.getElementById('rematch').getBoundingClientRect();
-                  return {top:button.top,bottom:button.bottom,tableTop:table.top,tableBottom:table.bottom};
+                  return {top:button.top,bottom:button.bottom,tableTop:0,tableBottom:innerHeight};
                 }""")
                 assert result['top'] >= result['tableTop'] and result['bottom'] <= result['tableBottom'], (width,height,result)
             assert not errors, errors
@@ -330,10 +353,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--base-path', default='/re7')
     parser.add_argument('--url')
+    parser.add_argument('--network', action='store_true', help='Include measured RTT for a remote server or SSH tunnel; retain the local UI budget')
     args = parser.parse_args()
     OUT.mkdir(exist_ok=True)
     if args.url:
-        check_usability(args.url.rstrip('/'), short_auth=False)
+        check_usability(args.url.rstrip('/'), short_auth=False, network=args.network)
         return
     # Retain diagnostics. On Windows another process can briefly retain a log
     # handle after server exit, making deletion with a temporary folder fail.

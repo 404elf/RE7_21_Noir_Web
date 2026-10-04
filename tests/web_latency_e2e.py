@@ -28,7 +28,7 @@ DELAY = """(() => {
           const card=document.querySelector('.trump-card[data-pending-action]');
           window.latencyWire.feedback.push({ms:performance.now()-lastSubmission.at,
             animation:card ? getComputedStyle(card).animationName : null,
-            busy:document.getElementById(d.action==='TRUMP'?'use-trump':d.action==='DISCARD'?'discard-trump':d.action==='HIT'?'hit':'stay').getAttribute('aria-busy'),
+            busy:(card || document.getElementById(d.action==='HIT'?'hit':'stay')).getAttribute('aria-busy'),
             confirming:document.getElementById('turn-hint').textContent});
         });
       }
@@ -92,11 +92,10 @@ def check_latency(url):
             expect(a.locator('#stay')).to_be_enabled()
             for index,action in enumerate(['TRUMP','TRUMP','DISCARD']):
                 a.locator('.trump-card').first.click()
-                button='#use-trump' if action=='TRUMP' else '#discard-trump'
-                expect(a.locator(button)).to_be_enabled()
-                a.locator(button).click()
+                expect(a.locator('#stay')).to_be_enabled()
+                a.locator('.trump-card').first.press('ArrowUp' if action=='TRUMP' else 'ArrowRight')
                 expect(a.locator('.trump-card.pending')).to_have_count(1)
-                expect(a.locator('#clock-1')).to_contain_text('确认')
+                expect(a.locator('#clock-status-1')).to_contain_text('确认')
                 expect(a.locator('#trump-count')).to_contain_text(f'{7-index} /')
             wire=a.evaluate('window.latencyWire')
             assert wire['actions']==3

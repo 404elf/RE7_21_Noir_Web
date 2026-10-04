@@ -14,6 +14,8 @@ from fastapi.staticfiles import StaticFiles
 from cards import CARDS, english_name
 from web.config import ROOT, customization_options, load_clock, load_rules, settings_checked
 from web.rooms import RoomError, RoomService
+from bot import DIFFICULTIES, STYLES
+from web.ai import checked as ai_checked
 
 HEARTBEAT_TIMEOUT = 45
 AUTH_TIMEOUT = 15
@@ -24,6 +26,7 @@ def create_app(*, config_path=None, timer_path=None, service_options=None, base_
     timer = load_clock(timer_path or os.environ.get("NOIR_TIMER", ROOT / "timer.json"), rules)
     service = RoomService(rules, timer, **(service_options or {}))
     options = customization_options(rules, timer)
+    options['ai'] = dict(difficulties=DIFFICULTIES, styles=STYLES)
     public_origin = os.environ.get("NOIR_ORIGIN", "").rstrip("/")
     base_path = (os.environ.get("NOIR_BASE_PATH", "") if base_path is None else base_path).rstrip("/")
     if base_path and not re.fullmatch(r"(?:/[A-Za-z0-9_-]+)+", base_path):
@@ -131,7 +134,11 @@ def create_app(*, config_path=None, timer_path=None, service_options=None, base_
         service.limit(request.client.host if request.client else "unknown")
         data = await payload(request, 16384)
         selected_rules, selected_timer = checked(data)
-        room = service.create(name_checked(data.get("name")), rules=selected_rules, timer=selected_timer)
+        try:
+            ai = ai_checked(data['ai']) if 'ai' in data else None
+        except (ValueError, TypeError):
+            raise RoomError('请选择有效的人机难度和风格。') from None
+        room = service.create(name_checked(data.get("name")), rules=selected_rules, timer=selected_timer, ai=ai)
         return seat_response(room, 1)
 
     @app.post(base_path + "/api/rooms/{code}/settings")

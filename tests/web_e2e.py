@@ -17,6 +17,7 @@ import urllib.request
 
 from playwright.sync_api import sync_playwright, expect
 from web_custom_e2e import check_customization
+from web_controls import read_clock_seconds
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -69,12 +70,12 @@ def run(url, fast=False):
                 a.wait_for_timeout(1100)
                 assert not [f for f in frames[checkpoint:] if f["type"] in ("state", "patch", "clock")]
                 a.locator(".trump-card").first.click()
-                a.locator("#use-trump").click()
-                expect(a.locator("#my-effects")).to_contain_text("加注")
+                a.locator(".trump-card").first.press('ArrowUp')
+                expect(a.locator("#field-trumps")).to_contain_text("加注")
                 assert "轮到你" in a.locator("#turn-hint").inner_text()
                 remaining = a.locator(".trump-card").count()
                 a.locator(".trump-card").first.click()
-                expect(a.locator("#discard-trump")).to_be_enabled()
+                expect(a.locator("#stay")).to_be_enabled()
                 bounds = a.locator('.trump-card').first.bounding_box()
                 x, y = bounds['x'] + bounds['width']/2, bounds['y'] + bounds['height']/2
                 a.mouse.move(x, y); a.mouse.down()
@@ -171,10 +172,10 @@ def check_clock(url):
             b.goto(f'{url}/?room={code}'); b.locator('#join-room').click(); expect(b.locator('#ready')).to_be_visible(); expect(b.locator('#ready')).to_be_enabled()
             a.locator('#ready').click(); expect(b.locator('#lobby-players')).to_contain_text('已准备')
             b.locator('#ready').click(); a.locator('#game').wait_for(state='visible')
-            first = int(re.search(r'\d+', a.locator('#clock-1').inner_text()).group())
+            first = read_clock_seconds(a, 1)
             count = len(frames)
             a.wait_for_timeout(1250)
-            second = int(re.search(r'\d+', a.locator('#clock-1').inner_text()).group())
+            second = read_clock_seconds(a, 1)
             assert second < first
             assert not [f for f in frames[count:] if f['type'] in ('patch', 'clock', 'state')]
             for _ in range(100):
@@ -190,7 +191,6 @@ def check_clock(url):
             assert a.locator('#clock-2').inner_text() == frozen
             b.goto(url); expect(b.locator('#game')).to_be_visible()
             expect(b.locator('#stay')).to_be_enabled()
-            a.locator('#match-menu summary').click()
             a.locator('#surrender').click(); expect(a.locator('#confirm-dialog')).to_be_visible()
             a.locator('#confirm-cancel').click(); expect(a.locator('#confirm-dialog')).to_be_hidden()
             assert not a.locator('#rematch').is_visible()
