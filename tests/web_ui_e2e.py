@@ -139,7 +139,7 @@ def check_usability(url, short_auth=True, network=False):
             assert_count(a, 8)
             expect(a.locator('.trump-detail')).to_be_hidden()
             expect(a.locator('.field-effects')).to_be_visible()
-            expect(a.locator('.empty-effects')).to_have_count(2)
+            expect(a.locator('.empty-effects')).to_have_count(1)
 
             for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390)]:
                 a.set_viewport_size({'width': width, 'height': height})
@@ -147,7 +147,7 @@ def check_usability(url, short_auth=True, network=False):
                 before_select = a.locator('#hit').bounding_box()
                 a.locator('.trump-card').first.click()
                 geometry = a.evaluate("""() => {
-                  const ids = ['play-drop', 'opponent', 'my-player', 'trump-hand', 'hit', 'stay', 'use-trump', 'discard-trump'];
+                  const ids = ['play-drop', 'opponent', 'my-player', 'trump-hand', 'hit', 'stay', 'match-clocks', 'stake-label'];
                   return {width: innerWidth, height: innerHeight,
                     documentWidth: document.documentElement.scrollWidth,
                     documentHeight: document.documentElement.scrollHeight,
@@ -169,6 +169,7 @@ def check_usability(url, short_auth=True, network=False):
                   const card=document.querySelector('#my-player .number-card'), hit=document.getElementById('hit');
                   return {numberHeight:card.getBoundingClientRect().height,
                     titleFont:parseFloat(getComputedStyle(document.querySelector('.trump-card strong')).fontSize),
+                    numberFont:parseFloat(getComputedStyle(card.querySelector('.card-number')).fontSize),
                     actionGap:hit.getBoundingClientRect().top-card.getBoundingClientRect().bottom,
                     selectable:getComputedStyle(document.getElementById('game')).userSelect,
                     overlayFree:['hit','stay'].every(id=>{const button=document.getElementById(id),r=button.getBoundingClientRect(),point=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2); return button===point || button.contains(point);})};
@@ -182,11 +183,14 @@ def check_usability(url, short_auth=True, network=False):
                 else:
                     assert quality['actionGap'] >= 0 or height <= 520, quality
                 assert quality['titleFont'] >= (16 if width <= 760 else 17), quality
-                assert quality['numberHeight'] >= (110 if width > 760 and height > 520 else 85 if height > 600 else 70 if height > 520 else 48), quality
+                # Dedicated clocks/stakes share the small-screen viewport;
+                # require readable glyphs as well as a visible card surface.
+                assert quality['numberHeight'] >= (110 if width > 760 and height > 520 else 85 if height > 700 else 60 if height > 520 else 44), quality
+                assert quality['numberFont'] >= (28 if height > 520 else 22), quality
                 geometry['quality'] = quality
                 report['viewports'].append(geometry)
                 if (width, height) in [(1440, 900), (390, 844), (844, 390)]:
-                    a.locator('#detail-close').click()
+                    a.keyboard.press('Escape')
                     a.screenshot(path=str(OUT / f'web-ui-{width}x{height}.png'), animations='disabled')
                     a.locator('.trump-card').first.click()
                     a.screenshot(path=str(OUT / f'web-ui-detail-{width}x{height}.png'), animations='disabled')
@@ -206,11 +210,11 @@ def check_usability(url, short_auth=True, network=False):
             assert held_count(a) == before, 'Left/down movement must not discard'
             mouse_drag(a, 0, -40)
             assert_count(a, before - 1)
-            expect(a.locator('#my-effects .effect')).to_have_count(1)
-            expect(a.locator('#stake-label')).to_contain_text('2 / 1')
+            expect(a.locator('#field-trumps .effect')).to_have_count(1)
+            expect(a.locator('#stake-label > div').first.locator('strong')).to_have_text('2')
             report['gestures'].append('mouse: up40px plays without reaching table')
             a.locator('.trump-card').first.click()
-            expect(a.locator('#discard-trump')).to_be_enabled()
+            expect(a.locator('#stay')).to_be_enabled()
             mouse_drag(a, 60, 0)
             assert_count(a, before - 2)
             report['gestures'].append('mouse: right60px discards without a drop target')
@@ -218,12 +222,12 @@ def check_usability(url, short_auth=True, network=False):
             a.set_viewport_size({'width': 390, 'height': 844})
             expect(a.locator('.trump-card')).to_have_count(3)
             a.locator('.trump-card').first.click()
-            expect(a.locator('#use-trump')).to_be_enabled()
+            expect(a.locator('#stay')).to_be_enabled()
             touch_drag(a, 0, -44)
             assert_count(a, before - 3)
             report['gestures'].append('touch: up44px plays; browser page does not scroll')
             a.locator('.trump-card').first.click()
-            expect(a.locator('#discard-trump')).to_be_enabled()
+            expect(a.locator('#stay')).to_be_enabled()
             touch_drag(a, 64, 0)
             assert_count(a, before - 4)
             report['gestures'].append('touch: right64px discards; no accidental hand scrolling')
@@ -245,16 +249,16 @@ def check_usability(url, short_auth=True, network=False):
             a.set_viewport_size({'width': 390, 'height': 844})
 
             a.locator('.trump-card').first.click()
-            expect(a.locator('#discard-trump')).to_be_enabled()
+            expect(a.locator('#stay')).to_be_enabled()
             a.evaluate('window.holdNextPatch = true')
             old_actions = a.evaluate('window.uiWire.actions')
             started = time.monotonic()
-            a.locator('#discard-trump').click()
+            a.locator('.trump-card').first.press('ArrowRight')
             expect(a.locator('#turn-hint')).to_contain_text('正在确认弃牌')
-            expect(a.locator('#discard-trump')).to_have_attribute('aria-busy', 'true')
+            expect(a.locator('.trump-card.pending')).to_have_attribute('aria-busy', 'true')
             assert_count(a, before - 5)
             a.locator('.trump-card').first.click()
-            expect(a.locator('#discard-trump')).to_be_enabled()
+            expect(a.locator('#stay')).to_be_enabled()
             assert a.evaluate('window.uiWire.actions') == old_actions + 1, 'Recovery must not replay the move'
             assert a.evaluate('window.uiWire.syncs') >= 1
             report['recovery']['withheld_update_seconds'] = round(time.monotonic() - started, 3)
@@ -273,10 +277,11 @@ def check_usability(url, short_auth=True, network=False):
                 else next();
               });
               const next=()=>{
-                document.querySelector('.trump-card').click();
-                const button=document.getElementById('discard-trump');
-                if(button.disabled) {observer.disconnect();reject('Fresh revision stayed locked');return;}
-                button.click();button.click(); // One outstanding command only.
+                const card=document.querySelector('.trump-card');
+                card.focus();card.click();
+                if(document.getElementById('stay').disabled) {observer.disconnect();reject('Fresh revision stayed locked');return;}
+                document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
+                document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true})); // One outstanding command only.
               };
               const timeout=setTimeout(()=>{observer.disconnect();reject('Rapid actions stalled');},5000);
               observer.observe(counter,{childList:true});next();
@@ -311,7 +316,6 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('#journal-dialog')).to_be_visible()
             expect(a.locator('#events li')).not_to_have_count(0)
             a.locator('#journal-close').click()
-            a.locator('#match-menu summary').click()
             a.locator('#surrender').click()
             a.locator('#confirm-ok').click()
             expect(a.locator('#rematch')).to_be_visible()
@@ -323,7 +327,6 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('#rematch')).to_be_hidden()
             expect(a.locator('#game')).to_be_visible()
             # Check the ending controls with a freshly replenished full hand.
-            a.locator('#match-menu summary').click()
             a.locator('#surrender').click(); a.locator('#confirm-ok').click()
             expect(a.locator('#rematch')).to_be_visible()
             for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390)]:

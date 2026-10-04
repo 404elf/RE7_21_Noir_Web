@@ -11,6 +11,7 @@ import time
 import urllib.request
 
 from playwright.sync_api import sync_playwright, expect
+from web_controls import fill_game
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / '.artifacts'
@@ -30,21 +31,23 @@ def run(url):
                 page.locator('#solo-open').click()
                 expect(page.locator('#ai-difficulty option')).to_have_count(4)
                 expect(page.locator('#ai-style option')).to_have_count(3)
-                page.locator('#ai-difficulty').select_option(difficulty)
+                page.locator(f'#ai-difficulty-choices [data-value="{difficulty}"]').click()
                 if difficulty == 'nightmare':
                     expect(page.locator('#ai-style')).to_be_disabled()
                 else:
-                    page.locator('#ai-style').select_option(['gambler','conservative','swing'][index])
+                    style = ['gambler','conservative','swing'][index]
+                    page.locator(f'#ai-style-choices [data-value="{style}"]').click()
                 page.locator('#solo-close').click()
                 # Same per-room config editor as multiplayer; no server default mutation.
                 page.locator('#customize-room').click()
                 page.locator('#settings-game input').first.wait_for()
-                page.locator('#setting-max_hp').fill('2')
-                page.locator('#setting-initial_trumps_count').fill('4')
-                page.locator('#setting-round_reward_trumps_count').fill('0')
-                page.locator('#setting-hit_draw_trump_probability').fill('0')
-                page.locator('#setting-number_card_draw_probability').fill('0')
+                for key, value in [('max_hp','2'),('initial_trumps_count','4'),
+                                   ('round_reward_trumps_count','0'),('hit_draw_trump_probability','0'),
+                                   ('number_card_draw_probability','0')]:
+                    fill_game(page, key, value)
                 page.locator('#settings-weights input').evaluate_all("nodes => nodes.forEach(n => n.value = n.id === 'weight-Add 1' ? '1' : '0')")
+                page.locator('[data-settings-tab="timer"]').click()
+                page.locator('[data-clock="custom"]').click()
                 page.locator('#timer-enabled').check()
                 page.locator('#timer-mode').select_option('turn')
                 page.locator('#timer-turn_seconds').fill('30')
@@ -62,17 +65,17 @@ def run(url):
                 expect(page.locator('#stay')).to_be_enabled()
                 expect(page.locator('#opponent .hidden-card')).to_have_count(1)
                 page.locator('.trump-card').first.click()
-                page.locator('#use-trump').click()
-                expect(page.locator('#my-effects')).to_contain_text('加注')
+                page.locator('.trump-card').first.press('ArrowUp')
+                expect(page.locator('#field-trumps')).to_contain_text('加注')
                 page.locator('.trump-card').first.click()
-                page.locator('#discard-trump').click()
+                page.locator('.trump-card').first.press('ArrowRight')
                 expect(page.locator('.trump-card')).to_have_count(2)
                 hand = page.locator('#my-player .card-number').all_text_contents()
                 page.reload()
                 expect(page.locator('#game')).to_be_visible()
                 expect(page.locator('#stay')).to_be_enabled()
                 assert page.locator('#my-player .card-number').all_text_contents() == hand
-                expect(page.locator('#my-effects')).to_contain_text('加注')
+                expect(page.locator('#field-trumps')).to_contain_text('加注')
                 expect(page.locator('#clock-1')).to_contain_text(re.compile(r'\d'))
                 page.locator('.trump-card').first.click()
                 page.screenshot(path=str(OUT / f'web-ai-{difficulty}.png'))

@@ -17,7 +17,7 @@ let pending = null, rendered = -1, reconnectTimer, heartbeat, toastTimer;
 let closing = false, retry = 0, online = false;
 let inspectedEffect = null, detailAnchor = null;
 let syncing = false;
-let handPage = 0, lastReceived = 0;
+let handPage = 0, fieldPage = 0, lastReceived = 0;
 let networkRTT = null, commandSequence = 0, decisionStarted = 0;
 const settingsEditor = new SettingsEditor(appRoot);
 let roomDraft = null;
@@ -221,13 +221,15 @@ function renderPlayer(p, mine) {
   const stats = element('div');
   stats.append(element('span', `♥ ${p.hp} / ${state.max_hp}`, 'health'));
   const vitality = element('progress', null, 'vitality'); vitality.max = state.max_hp; vitality.value = p.hp; vitality.setAttribute('aria-label', `${p.name} 生命 ${p.hp}`); stats.append(vitality);
-  const clock = element('span', '', 'clock'); clock.id = `clock-${p.id}`;
-  stats.append(clock); heading.append(label, stats, element('small', `王牌 ${p.trump_count}`, 'trump-inventory'));
+  heading.append(label, stats, element('small', `王牌 ${p.trump_count}`, 'trump-inventory'));
   let cards = root.querySelector('.number-cards');
   if (!cards) { cards = element('div', null, 'number-cards'); root.replaceChildren(heading, cards); }
   else root.querySelector('.player-heading').replaceWith(heading);
   const oldCards = new Map([...cards.querySelectorAll('.number-card')].map((c) => [c.dataset.key, c]));
   cards.style.setProperty('--hand-count', p.hand.length);
+  const columns = Math.max(1, Math.min(4, p.hand.length));
+  cards.style.setProperty('--hand-columns', columns);
+  cards.style.setProperty('--hand-rows', Math.ceil(p.hand.length / columns));
   const added = [];
   p.hand.forEach((number, index) => {
     const key = index === 0 ? 'first' : `number-${number}`;
@@ -259,22 +261,9 @@ function renderGame() {
   $('round-label').textContent = `ROUND ${String(state.round).padStart(2, '0')}`;
   $('deck-label').textContent = `牌堆剩余 ${state.deck_count} 张`;
   $('target').textContent = state.target;
-  $('stake-label').textContent = `对手 / 你的赌注 ${state.players.find((p) => p.id !== state.pid).stake ?? '?'} / ${myPlayer().stake ?? '?'}`;
   state.players.forEach((p) => renderPlayer(p, p.id === state.pid));
-  for (const mine of [true, false]) {
-    const effects = state.active_trumps.filter((t) => (t.owner === state.pid) === mine).map((t) => {
-      const info = cardInfo(t.name);
-      const node = element('button', null, `effect ${info.category}`);
-      node.append(element('small', mine ? '你的' : '对手'), element('strong', info.title + (t.counter === undefined ? '' : ` ${t.counter}/${t.val}`)));
-      node.title = info.description;
-      node.dataset.name = t.name;
-      node.onclick = () => { selectTrump(null); inspectedEffect = t.name; detailAnchor = node; updateTrumpDetail(); };
-      return node;
-    });
-    const container = $(mine ? 'my-effects' : 'opponent-effects');
-    container.replaceChildren(...effects);
-    if (!effects.length) container.append(element('span', '暂无场牌', 'empty-effects'));
-  }
+  renderMatchStatus();
+  renderFieldTrumps();
   document.querySelector('.field-effects').hidden = false;
   if (inspectedEffect && !state.active_trumps.some((t) => t.name === inspectedEffect)) inspectedEffect = null;
   const cards = myPlayer().trumps;
@@ -311,6 +300,43 @@ function renderGame() {
   $('draw-request-text').textContent = `${playerName(3 - state.pid)} 提议平局结束本场。`;
 }
 
+function renderFieldTrumps() {
+  const container = $('field-trumps');
+  const cardWidth = innerWidth <= 760 || innerHeight <= 520 ? 84 : 112;
+  const perPage = Math.max(1, Math.floor((container.clientWidth + 6) / (cardWidth + 6)));
+  const pages = Math.max(1, Math.ceil(state.active_trumps.length / perPage));
+  fieldPage = Math.max(0, Math.min(fieldPage, pages - 1));
+  container.replaceChildren(...state.active_trumps.slice(fieldPage * perPage, (fieldPage + 1) * perPage).map((t) => {
+    const info = cardInfo(t.name), mine = t.owner === state.pid;
+    const node = element('button', null, `effect ${info.category} ${mine ? 'owned' : 'opposing'}`);
+    node.append(element('small', mine ? '你的' : '对手'), element('strong', info.title + (t.counter === undefined ? '' : ` ${t.counter}/${t.val}`)));
+    node.title = info.description; node.dataset.name = t.name;
+    node.onclick = () => { selectTrump(null); inspectedEffect = t.name; detailAnchor = node; updateTrumpDetail(); };
+    return node;
+  }));
+  if (!state.active_trumps.length) container.append(element('span', '暂无场牌', 'empty-effects'));
+  $('field-pages').hidden = pages === 1;
+  $('field-page').textContent = `${fieldPage + 1}/${pages}`;
+  $('field-prev').disabled = fieldPage === 0; $('field-next').disabled = fieldPage === pages - 1;
+}
+
+function renderMatchStatus() {
+  const players = [...state.players].sort((a, b) => Number(a.id === state.pid) - Number(b.id === state.pid));
+  const timer = state.timer;
+  $('clock-mode').textContent = !timer.enabled ? '不限时' : timer.mode === 'fischer'
+    ? `${timer.initial_minutes ?? '∞'}+${timer.increment_seconds} · 整场`
+    : timer.mode === 'round' ? '每人每局' : '每次行动';
+  $('match-clocks').replaceChildren(...players.map((p) => {
+    const row = element('div', null, 'player-clock'); row.id = `clock-row-${p.id}`;
+    const value = element('strong', '', 'clock'); value.id = `clock-${p.id}`;
+    const status = element('small'); status.id = `clock-status-${p.id}`;
+    row.append(element('span', p.id === state.pid ? '你' : state.ai ? 'AI 对手' : '对手'), value, status); return row;
+  }));
+  $('stake-label').replaceChildren(...players.map((p) => {
+    const row = element('div'); row.append(element('span', p.id === state.pid ? '你' : '对手'), element('strong', String(p.stake ?? '?'))); return row;
+  }));
+}
+
 function selectTrump(index) {
   selected = index;
   inspectedEffect = null;
@@ -330,7 +356,6 @@ function updateTrumpDetail() {
   const info = cardInfo(name);
   $('selected-title').textContent = info.title;
   $('selected-description').textContent = info.description;
-  $('discard-drop').hidden = selected === null;
   if (innerWidth > 760 && innerHeight > 520) { panel.style.left = panel.style.top = ''; return; }
   detailAnchor = selected === null ? document.querySelector(`.effect[data-name="${name}"]`) : $('trump-hand').querySelector(`[data-index="${selected}"]`);
   if (!detailAnchor) { panel.hidden = true; return; }
@@ -389,7 +414,10 @@ function updateClocks() {
     const confirming = p.id === state.pid && active && pending && ['HIT', 'STAY', 'TRUMP', 'DISCARD'].includes(pending.action);
     if (confirming) elapsed = Math.max(0, elapsed - Math.min((performance.now()-pending.started)/1000, (state.timing?.lag_allowance_ms || 0)/1000));
     const left = stored === null ? null : Math.max(0, stored - (active ? elapsed : 0));
-    node.textContent = state.timer.enabled ? `${confirming ? '确认 ' : prep ? '准备 ' : ''}${left === null ? '∞' : Math.ceil(left) + 's'}${state.paused ? ' · 暂停' : ''}` : '';
+    const seconds = left === null ? null : Math.ceil(left);
+    node.textContent = !state.timer.enabled ? '∞' : seconds === null ? '∞' : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    $(`clock-status-${p.id}`).textContent = !state.timer.enabled ? '' : state.paused ? '暂停' : confirming ? '确认中' : prep ? '准备' : active ? '计时中' : '等待';
+    $(`clock-row-${p.id}`).classList.toggle('active', Boolean(state.timer.enabled && active && !state.paused));
     node.classList.toggle('urgent', left !== null && left <= 10 && active);
   }
   if (state.paused) {
@@ -407,11 +435,8 @@ function updateControls() {
   const action = ready && !state.paused && state.phase === 'ACTION';
   const turn = action && state.turn === state.pid;
   const lockedDraw = state?.active_trumps?.some((t) => t.owner !== state.pid && ['GAMBLE', 'SILENCE'].includes(t.type));
-  const lockedTrump = state?.active_trumps?.some((t) => t.owner !== state.pid && t.type === 'DESTROY_BLOCK');
   $('hit').disabled = !turn || myPlayer()?.total > state.target || state.deck_count === 0 || lockedDraw;
   $('stay').disabled = !turn;
-  $('use-trump').disabled = !turn || selected === null || lockedTrump;
-  $('discard-trump').disabled = !turn || selected === null;
   $('offer-draw').disabled = !action || Boolean(state.draw_offer);
   $('surrender').disabled = !action;
   $('accept-draw').disabled = $('decline-draw').disabled = !action;
@@ -419,10 +444,12 @@ function updateControls() {
   const labels = { HIT: '抽牌', STAY: '停牌', TRUMP: '出牌', DISCARD: '弃牌', ready: '准备', REMATCH: '再战' };
   const slowResponse = pending && performance.now() - pending.started > 1000;
   if (state && state.phase !== 'LOBBY') $('turn-hint').textContent = !online ? '连接中断 · 正在重连' : syncing ? '正在同步牌桌…' : slowResponse ? `正在确认${labels[pending.action] || '操作'}${pending.syncRequested ? ' · 正在核对状态' : '…'}` : state.paused ? '暂停 · 等待对手重连' : state.phase === 'GAMEOVER' ? '本场结束 · 可选择再战' : state.phase === 'RESULT' ? '双方亮牌 · 正在结算' : state.turn === state.pid ? (myPlayer().stopped ? '轮到你 · 已停牌，仍可使用王牌' : lockedDraw ? '轮到你 · 抽牌被封锁' : '轮到你 · 你的行动') : '对手的行动';
-  for (const [id, move] of Object.entries({ hit: 'HIT', stay: 'STAY', 'use-trump': 'TRUMP', 'discard-trump': 'DISCARD' })) $(id).setAttribute('aria-busy', String(pending?.action === move));
+  for (const [id, move] of Object.entries({ hit: 'HIT', stay: 'STAY' })) $(id).setAttribute('aria-busy', String(pending?.action === move));
   $('trump-hand').querySelectorAll('.trump-card').forEach((card) => {
     const submitting = pending?.index === Number(card.dataset.index);
     card.classList.toggle('pending', submitting);
+    card.setAttribute('aria-busy', String(submitting));
+    card.setAttribute('aria-keyshortcuts', 'ArrowUp ArrowRight');
     if (submitting) card.dataset.pendingAction = pending.action;
     else delete card.dataset.pendingAction;
   });
@@ -444,9 +471,11 @@ $('create-room').onclick = () => enter('api/rooms', roomDraft);
 $('solo-open').onclick = () => { $('solo-settings').textContent = settingsSummary(roomDraft); $('solo-dialog').showModal(); };
 $('solo-close').onclick = () => $('solo-dialog').close();
 $('solo-start').onclick = () => { $('solo-dialog').close(); enter('api/rooms', { ...roomDraft, ai: { difficulty: $('ai-difficulty').value, style: $('ai-style').value } }); };
-$('customize-room').onclick = () => settingsEditor.open(roomDraft, { save(value) {
+const editDraft = (tab = 'game') => settingsEditor.open(roomDraft, { tab, save(value) {
   roomDraft = value; $('new-settings-summary').textContent = settingsSummary(value);
 } });
+$('customize-room').onclick = () => editDraft();
+$('timer-open').onclick = () => editDraft('timer');
 $('room-settings').onclick = () => settingsEditor.open({ config: state.rules, timer: state.timer }, { readonly: true, room: true });
 $('edit-room-settings').onclick = () => {
   const code = state.room, revision = state.revision;
@@ -463,9 +492,6 @@ $('edit-room-settings').onclick = () => {
 $('join-form').onsubmit = (event) => { event.preventDefault(); const code = $('room-code').value.trim().toUpperCase(); if (!/^[A-Z2-9]{8}$/.test(code)) { $('home-error').textContent = '请输入完整的 8 位房间码。'; return; } enter(`api/rooms/${encodeURIComponent(code)}/join`); };
 $('ready').onclick = () => send('ready');
 for (const [id, action] of Object.entries({ hit: 'HIT', stay: 'STAY', rematch: 'REMATCH', 'offer-draw': 'DRAW_OFFER', 'accept-draw': 'DRAW_ACCEPT', 'decline-draw': 'DRAW_DECLINE' })) $(id).onclick = () => send('action', action);
-$('use-trump').onclick = () => send('action', 'TRUMP', selected);
-$('discard-trump').onclick = () => send('action', 'DISCARD', selected);
-$('detail-close').onclick = () => selectTrump(null);
 document.addEventListener('pointerdown', (event) => {
   if (!event.target.closest('.trump-card, .trump-detail, .effect')) selectTrump(null);
   if (!event.target.closest('#match-menu')) $('match-menu').open = false;
@@ -487,6 +513,7 @@ $('retry-connection').onclick = reconnect;
 $('journal-open').onclick = () => $('journal-dialog').showModal();
 $('journal-close').onclick = () => $('journal-dialog').close();
 for (const [id, delta] of [['hand-prev', -1], ['hand-next', 1]]) $(id).onclick = () => { handPage += delta; renderGame(); updateClocks(); updateControls(); };
+for (const [id, delta] of [['field-prev', -1], ['field-next', 1]]) $(id).onclick = () => { fieldPage += delta; renderFieldTrumps(); };
 addEventListener('resize', () => { if (state && state.phase !== 'LOBBY') { endDrag(); renderGame(); updateClocks(); updateControls(); } });
 $('rules-open').onclick = () => { renderCatalog(); $('rules-dialog').showModal(); };
 $('rules-close').onclick = () => $('rules-dialog').close();
@@ -506,6 +533,10 @@ function confirmMove(title, copy, label) {
 }
 
 let drag = null, suppressClick = false;
+function canUseTrump(action) {
+  if (!online || syncing || pending || !state || state.paused || state.phase !== 'ACTION' || state.turn !== state.pid || selected === null) return false;
+  return action === 'DISCARD' || action === 'TRUMP' && !state.active_trumps.some((t) => t.owner !== state.pid && t.type === 'DESTROY_BLOCK');
+}
 $('trump-hand').addEventListener('pointerdown', (event) => {
   const card = event.target.closest('.trump-card');
   if (!card || !event.isPrimary || event.button !== 0) return;
@@ -538,8 +569,7 @@ document.addEventListener('pointerup', (event) => {
   if (!drag || event.pointerId !== drag.pointer) return;
   if (drag.ghost) {
     const action = gestureAction(event.clientX - drag.x, event.clientY - drag.y, drag.touch);
-    const button = action === 'TRUMP' ? $('use-trump') : action === 'DISCARD' ? $('discard-trump') : null;
-    if (drag.revision === state.revision && button && !button.disabled) button.click();
+    if (drag.revision === state.revision && action && canUseTrump(action)) send('action', action, selected);
     else if (action) toast($('turn-hint').textContent || '当前不能出牌。');
   }
   endDrag(); setTimeout(() => { suppressClick = false; }, 0);
@@ -555,6 +585,14 @@ document.addEventListener('visibilitychange', () => {
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { endDrag(); suppressClick = false; selectTrump(null); } });
 document.addEventListener('keydown', (event) => {
   if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || document.querySelector('dialog[open]') || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+  const card = document.activeElement.closest('.trump-card');
+  const trumpAction = event.key === 'ArrowUp' ? 'TRUMP' : event.key === 'ArrowRight' ? 'DISCARD' : null;
+  if (card && trumpAction) {
+    event.preventDefault();
+    selectTrump(Number(card.dataset.index));
+    if (canUseTrump(trumpAction)) send('action', trumpAction, selected);
+    return;
+  }
   const button = event.key.toLowerCase() === 'h' ? $('hit') : event.key.toLowerCase() === 's' ? $('stay') : null;
   if (button && !button.disabled) { event.preventDefault(); button.click(); }
 });
@@ -572,20 +610,26 @@ async function init() {
       const select = $(`ai-${kind}`);
       select.replaceChildren(...Object.entries(options).map(([key, row]) => { const option = element('option', row[0]); option.value = key; return option; }));
       select.value = kind === 'difficulty' ? 'normal' : 'swing';
-      select.onchange = () => { $(`ai-${kind}-note`).textContent = options[select.value][2]; };
-      select.onchange();
+      $(`ai-${kind}-choices`).replaceChildren(...Object.entries(options).map(([key, row]) => {
+        const button = element('button', null, 'secondary ai-choice'); button.type = 'button'; button.dataset.value = key;
+        button.append(element('strong', row[0]), element('span', row[2]));
+        button.onclick = () => { select.value = key; select.onchange(); }; return button;
+      }));
     }
-    const difficultyNote = $('ai-difficulty').onchange;
-    const styleNote = $('ai-style').onchange;
     const refreshAI = () => {
-      difficultyNote(); styleNote();
       $('ai-style').disabled = $('ai-difficulty').value === 'nightmare';
-      if ($('ai-style').disabled) $('ai-style-note').textContent = '极难模式不区分打法，与原版一致。';
+      $('ai-style-note').textContent = $('ai-style').disabled ? '极难模式不区分打法，与原版一致。' : '';
+      for (const kind of ['difficulty', 'style']) {
+        const select = $(`ai-${kind}`);
+        for (const button of $(`ai-${kind}-choices`).children) {
+          button.setAttribute('aria-pressed', String(select.value === button.dataset.value)); button.disabled = select.disabled;
+        }
+      }
     };
     $('ai-difficulty').onchange = $('ai-style').onchange = refreshAI;
     refreshAI();
     $('new-settings-summary').textContent = settingsSummary(roomDraft);
-    $('customize-room').disabled = $('create-room').disabled = $('solo-open').disabled = false;
+    $('timer-open').disabled = $('customize-room').disabled = $('create-room').disabled = $('solo-open').disabled = false;
   } catch (error) { $('home-error').textContent = error.message; }
   try { const saved = JSON.parse(storageRead(seatKey)); if (saved && typeof saved.token === 'string' && /^[A-Z2-9]{8}$/.test(saved.room)) { seat = saved; connect(); } }
   catch { saveSeat(null); }
