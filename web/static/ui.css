@@ -186,6 +186,9 @@ body.playing .trump-detail p { overflow:visible; max-height:none; flex:none }
   #solo-dialog h3 { margin-top:12px }
 }
 @media (max-height:520px) and (min-width:761px) {
+  body.playing .number-cards { width:min(100%,calc(var(--hand-columns)*var(--number-height)*.95 + (var(--hand-columns) - 1)*5px)) }
+  body.playing .number-card { aspect-ratio:.95 }
+  body.playing .card-number { font-size:clamp(22px,53cqw,50px) }
   body.playing #game { grid-template-columns:minmax(0,1fr) 248px; grid-template-rows:44px 122px minmax(0,1fr) 82px; grid-template-areas:"table info" "table status" "table actions" "hand actions" }
   body.playing .table { grid-template-rows:18px minmax(0,1fr) 60px minmax(0,1fr) 14px }
   body.playing .game-console>.match-status { grid-template-columns:1fr; gap:4px }
