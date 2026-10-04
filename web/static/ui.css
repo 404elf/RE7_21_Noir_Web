@@ -6,7 +6,7 @@ input,textarea,[contenteditable="true"] { user-select:text; -webkit-user-select:
 
 @media (min-width:1101px) and (min-height:521px) {
   body.playing #game { grid-template-columns:minmax(0,1fr) 340px }
-  body.playing .game-console { grid-template-rows:104px minmax(140px,1fr) 104px auto 44px; gap:8px }
+  body.playing .game-console { grid-template-rows:104px minmax(140px,1fr) 104px 150px 44px; gap:8px }
   body.playing .turn-actions button { min-height:54px }
   body.playing .trump-detail { padding:16px }
   body.playing .trump-detail p { font-size:17px; line-height:1.55 }

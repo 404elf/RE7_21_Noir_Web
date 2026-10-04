@@ -188,6 +188,7 @@ def check_customization(url):
             assert mobile.locator('#settings-dialog').evaluate('(d) => { const r=d.getBoundingClientRect(); return r.left >= 0 && r.right <= document.documentElement.clientWidth; }')
             assert mobile.locator('#settings-dialog').evaluate('(d) => d.scrollWidth <= d.clientWidth')
             mobile.screenshot(path=str(output / 'web-custom-settings-mobile.png'), animations='disabled')
+            mobile.locator('[data-settings-tab="weights"]').click()
             mobile.locator('#settings-weight-search').fill('加注')
             assert mobile.locator('.weight-row:visible').count() > 0
             assert mobile.locator('#settings-dialog').evaluate('(d) => d.scrollWidth <= d.clientWidth')
