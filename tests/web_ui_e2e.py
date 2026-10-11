@@ -87,6 +87,22 @@ FAULTS = """(() => {
 })();"""
 
 
+def wait_for_probe(page, predicate):
+    # Compile our test predicate once through Playwright's evaluation API.
+    # Re-evaluating a string on every wait_for_function tick can hit the site's
+    # strict CSP when a WAN response arrives after the first observation.
+    page.evaluate('''() => new Promise((resolve, reject) => {
+      const ready = (''' + predicate + ''');
+      const timer = setInterval(check, 25);
+      const timeout = setTimeout(() => { clearInterval(timer); reject('Probe timed out'); }, 10000);
+      function check() {
+        if (!ready()) return;
+        clearInterval(timer); clearTimeout(timeout); resolve();
+      }
+      check();
+    })''')
+
+
 def held_count(page):
     return int(page.locator('#trump-count').inner_text().split('/')[0].strip())
 
@@ -242,7 +258,7 @@ def check_usability(url, short_auth=True, network=False):
             assert a.evaluate('window.uiAudio.contexts') == 0, 'Sound must be opt-in, with no idle audio engine'
             a.locator('#sound-toggle').click()
             expect(a.locator('#sound-toggle')).to_have_attribute('aria-pressed', 'true')
-            a.wait_for_function('() => window.uiAudio.started > 0')
+            wait_for_probe(a, '() => window.uiAudio.started > 0')
             expect(a.locator('.trump-card')).to_have_count(6)
             a.locator('#hand-next').click()
             expect(a.locator('.trump-card')).to_have_count(2)
@@ -362,7 +378,7 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('.hand-pages')).to_be_hidden()
             assert a.locator('.trump-panel').bounding_box()['height'] <= 42
             report['rapid_discards_ms'] = rapid
-            a.wait_for_function('() => window.uiAudio.active === 0')
+            wait_for_probe(a, '() => window.uiAudio.active === 0')
             assert a.evaluate('window.uiAudio.peak') <= 12, 'Rapid moves must not accumulate audio'
             a.locator('#hit').click()
             expect(b.locator('#stay')).to_be_enabled()
@@ -388,14 +404,14 @@ def check_usability(url, short_auth=True, network=False):
             assert a.evaluate("[...document.querySelectorAll('.number-card')].every(n => !n.getAnimations().length)")
             # Muting stops currently playing sources as well as future sounds.
             a.locator('#sound-toggle').click()
-            a.wait_for_function('() => window.uiAudio.active === 0')
+            wait_for_probe(a, '() => window.uiAudio.active === 0')
             played = a.evaluate('window.uiAudio.started')
             a.locator('#stay').click()
             expect(b.locator('#stay')).to_be_enabled()
             assert a.evaluate('window.uiAudio.started') == played
             a.emulate_media(reduced_motion='no-preference')
             a.locator('#sound-toggle').click()
-            a.wait_for_function('() => window.uiAudio.started > 0')
+            wait_for_probe(a, '() => window.uiAudio.started > 0')
             report['presentation'] = {'opt_in': True, 'saved_preference': True, 'snapshot_replay': False,
                                       'reduced_motion': True, 'mute_stops_audio': True}
 
@@ -414,9 +430,9 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('#stay')).to_be_disabled()
             expect(a.locator('#sound-toggle')).to_have_attribute('aria-pressed', 'false')
             assert a.evaluate('window.uiAudio.cutOff') >= 3
-            a.wait_for_function('() => window.uiAudio.active === 0')
+            wait_for_probe(a, '() => window.uiAudio.active === 0')
             a.locator('#rematch').click()
-            b.wait_for_function('() => window.uiWire.rematches[1] === true')
+            wait_for_probe(b, '() => window.uiWire.rematches[1] === true')
             b.locator('#rematch').click()
             expect(a.locator('#rematch')).to_be_hidden()
             expect(a.locator('#game')).to_be_visible()
