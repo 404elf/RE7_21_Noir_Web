@@ -126,7 +126,7 @@ def run(url, fast=False):
             b.wait_for_timeout(300)
             b.locator("#rematch").click()
             expect(a.locator("#rematch")).to_be_hidden()
-            expect(a.locator("#round-label")).to_contain_text("01")
+            expect(a.locator("#round-label")).to_have_text("第 1 局")
             b.set_viewport_size({"width": 390, "height": 844})
             b.screenshot(path=str(output / "web-mobile.png"), full_page=True, animations="disabled")
             assert b.evaluate("document.documentElement.scrollWidth <= innerWidth")
