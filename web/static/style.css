@@ -327,7 +327,7 @@ kbd {
   background:repeating-linear-gradient(45deg,#8e62321c 0 1px,transparent 1px 6px),repeating-linear-gradient(-45deg,#8e62321c 0 1px,transparent 1px 6px),#291b13;
   color:var(--gold);
   transform:translate(-96px,22px) rotate(-15deg);
-  z-index:-1;
+
   justify-content:center;
   gap:18px;
   box-shadow:inset 0 0 0 9px #281c13,inset 0 0 0 10px #9f7845
@@ -341,7 +341,7 @@ kbd {
 }
 .hero-card.third {
   transform:translate(46px,34px) rotate(27deg);
-  z-index:-2;
+
   background:#b3a083;
   color:#352517;
   opacity:.65
@@ -520,14 +520,6 @@ kbd {
   background:radial-gradient(ellipse at 50% 55%,#68422618,transparent 65%),linear-gradient(145deg,#241e17,#171410);
   transition:border-color .4s,box-shadow .4s
 }
-.table:before {
-  content:'';
-  position:absolute;
-  inset:6px;
-  border:1px solid #83634123;
-  border-radius:2px;
-  pointer-events:none
-}
 .table.my-turn {
   border-color:#ab7f4c90;
   box-shadow:0 0 35px #8b542213,inset 0 0 70px #ab6c1810
@@ -560,27 +552,9 @@ kbd {
   align-items:center;
   gap:12px
 }
-.avatar {
-  width:31px;
-  height:31px;
-  display:grid;
-  place-items:center;
-  border:1px solid #8b694755;
-  background:#33251c;
-  color:var(--gold);
-  font:18px var(--serif);
-  border-radius:50%
-}
 .player-name {
   font-weight:500;
   font-size:13px
-}
-.player-tag {
-  font-size:8px;
-  letter-spacing:1px;
-  border:1px solid #715337;
-  color:#a68c65;
-  padding:1px 5px
 }
 .health {
   color:#da8a71;
@@ -751,16 +725,6 @@ kbd {
   border-bottom:1px solid #a579452b;
   margin:14px 0 20px
 }
-.table-inscription {
-  color:#8d7658;
-  font:13px/1.8 var(--serif);
-  letter-spacing:4px;
-  opacity:.55
-}
-.table-inscription small {
-  font:7px var(--sans);
-  letter-spacing:1.5px
-}
 .target-seal {
   position:relative;
   display:flex;
@@ -773,14 +737,6 @@ kbd {
   border-radius:50%;
   box-shadow:0 0 0 7px #ad80410b,0 0 0 8px #ad80412b
 }
-.target-seal:before {
-  content:'';
-  position:absolute;
-  inset:-15px;
-  border:1px dashed #ac814c26;
-  border-radius:50%;
-  animation:seal-turn 90s linear infinite
-}
 .target-seal>span {
   font-size:9px;
   color:#b69d78;
@@ -789,32 +745,6 @@ kbd {
 .target-seal strong {
   font:51px/1.1 var(--serif);
   color:var(--gold)
-}
-.target-seal>small {
-  font-size:7px;
-  letter-spacing:3px;
-  color:#806849
-}
-.deck-stack {
-  width:55px;
-  height:79px;
-  border:1px solid #a07b43;
-  background:repeating-linear-gradient(45deg,#a37e462b 0 1px,transparent 1px 5px),#2b1d13;
-  transform:rotate(8deg);
-  box-shadow:3px 3px 0 #47301b,4px 4px 0 #98703c,7px 7px 0 #3e2818,8px 8px 0 #76502c;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-direction:column;
-  color:var(--gold);
-  gap:8px
-}
-.deck-stack>span {
-  font-size:24px
-}
-.deck-stack>small {
-  font-size:6px;
-  letter-spacing:2px
 }
 .turn-actions {
   display:flex;
@@ -836,37 +766,6 @@ kbd {
 .turn-actions .primary {
   min-width:115px
 }
-.table-verdict {
-  position:absolute;
-  inset:0;
-  background:radial-gradient(ellipse,#2f2012fa 20%,#1b1510f5 65%,#15110edf);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  border-top:1px solid #c39b6140;
-  border-bottom:1px solid #c39b6140;
-  z-index:2
-}
-.table-verdict small {
-  color:var(--gold);
-  font-size:8px;
-  letter-spacing:4px
-}
-.table-verdict strong {
-  font:46px/1.5 var(--serif);
-  color:#d9bc89;
-  letter-spacing:6px
-}
-.table-verdict.loss strong {
-  color:#d8755b
-}
-.table-verdict.loss {
-  background:radial-gradient(ellipse,#431c13f5,#1b100def)
-}
-.table-verdict.victory {
-  box-shadow:inset 0 0 45px #dcad4715
-}
 .trump-panel {
   margin-top:18px;
   padding:20px 24px
@@ -879,12 +778,6 @@ kbd {
 }
 .section-heading h2 {
   font:16px var(--sans)
-}
-.section-heading h2>.eyebrow {
-  display:block;
-  font-size:8px;
-  letter-spacing:2px;
-  margin-bottom:7px
 }
 .section-heading h2 small {
   font:10px var(--sans);
@@ -964,26 +857,6 @@ kbd {
   color:var(--accent);
   letter-spacing:2px
 }
-.trump-art {
-  position:relative;
-  align-self:center;
-  width:60px;
-  height:60px;
-  display:grid;
-  place-items:center;
-  color:var(--accent);
-  font:34px var(--serif);
-  border:1px solid #99734330;
-  border-radius:50%;
-  margin:6px 0
-}
-.trump-art:before {
-  content:'';
-  position:absolute;
-  inset:-5px;
-  border:1px solid #99734318;
-  transform:rotate(45deg)
-}
 .trump-card strong {
   font:17px var(--serif);
   color:#e2d3ba;
@@ -1025,34 +898,6 @@ kbd {
   position:relative;
   padding:3px
 }
-.trump-detail .primary {
-  font-size:11px;
-  min-height:38px;
-  padding:8px 14px
-}
-.drop-label {
-  display:none
-}
-.dragging .drop-label {
-  display:block;
-  position:absolute;
-  bottom:6px;
-  font-size:10px;
-  color:var(--gold)
-}
-.dragging [data-drop] {
-  outline:1px dashed #c69b6099;
-  outline-offset:-4px
-}
-.dragging #discard-drop {
-  min-height:52px;
-  background:#65281730;
-  padding-bottom:18px
-}
-.dragging .drop-hover {
-  outline:2px solid #e7c287;
-  background:#b4803025
-}
 .drag-ghost {
   position:fixed!important;
   pointer-events:none;
@@ -1061,22 +906,6 @@ kbd {
   transform:rotate(8deg)!important;
   margin:0!important;
   box-shadow:10px 20px 30px #0008!important
-}
-.sidebar {
-  display:flex;
-  flex-direction:column;
-  gap:18px;
-  min-width:0
-}
-.sidebar .panel {
-  padding:21px
-}
-.small-mark {
-  font-size:8px;
-  letter-spacing:1px;
-  border:1px solid #715337;
-  padding:1px 5px;
-  color:#c5a674
 }
 .journal ol {
   list-style:none;
@@ -1104,26 +933,6 @@ kbd {
   color:#806a4a;
   padding-top:2px;
   flex-shrink:0
-}
-.small-panel {
-  margin-top:auto
-}
-.small-panel h3 {
-  font-size:12px;
-  color:var(--gold);
-  margin-bottom:12px
-}
-.small-panel p {
-  font-size:11px;
-  color:var(--muted);
-  margin:10px 0
-}
-.match-controls {
-  display:flex;
-  justify-content:space-between;
-  border-top:1px solid #73553940;
-  margin-top:18px;
-  padding-top:8px
 }
 .result-panel {
   border-color:#c49b5966!important;
@@ -1273,21 +1082,6 @@ dialog>p {
 .catalog .disabled-card {
   opacity:.45
 }
-.damage-flash:after {
-  content:'';
-  position:fixed;
-  inset:0;
-  pointer-events:none;
-  z-index:55;
-  box-shadow:inset 0 0 170px #a12e24b0;
-  animation:damage .7s ease-out forwards
-}
-.table.event-flash {
-  animation:event-flash .8s ease-out
-}
-.new-event {
-  animation:toast-in .35s ease-out
-}
 @keyframes lamp {
   to {
     opacity:.4;
@@ -1297,24 +1091,6 @@ dialog>p {
 @keyframes float-card {
   50% {
     transform:translateY(-11px) rotate(11deg) rotateY(-5deg)
-  }
-}
-@keyframes seal-turn {
-  to {
-    transform:rotate(360deg)
-  }
-}
-@keyframes damage {
-  to {
-    opacity:0
-  }
-}
-@keyframes event-flash {
-  0% {
-    box-shadow:inset 0 0 90px #d6a74a35
-  }
-  100% {
-    box-shadow:inset 0 0 0 transparent
   }
 }
 @keyframes toast-in {
@@ -1405,12 +1181,6 @@ dialog>p {
   .table-center {
     gap:45px
   }
-  .table-inscription {
-    font-size:10px
-  }
-  .table-inscription small {
-    font-size:6px
-  }
   .trump-panel {
     padding:18px
   }
@@ -1476,16 +1246,8 @@ dialog>p {
   .game-layout {
     grid-template-columns:1fr
   }
-  .sidebar {
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    align-items:start
-  }
   .result-panel {
     grid-column:1/-1
-  }
-  .small-panel {
-    margin:0
   }
   .journal ol {
     max-height:190px
@@ -1632,19 +1394,11 @@ dialog>p {
   .lobby-players {
     gap:10px
   }
-  .player-tag {
-    display:none
-  }
   .player-heading {
     margin-bottom:12px
   }
   .player-heading>div {
     gap:8px
-  }
-  .avatar {
-    width:25px;
-    height:25px;
-    font-size:15px
   }
   .player-name {
     font-size:11px
@@ -1714,22 +1468,6 @@ dialog>p {
     font-size:8px;
     letter-spacing:2px
   }
-  .target-seal>small {
-    font-size:6px
-  }
-  .table-inscription {
-    display:none
-  }
-  .deck-stack {
-    width:42px;
-    height:61px
-  }
-  .deck-stack>span {
-    font-size:18px
-  }
-  .table-verdict strong {
-    font-size:34px
-  }
   .turn-actions {
     gap:10px;
     align-items:flex-start;
@@ -1772,11 +1510,6 @@ dialog>p {
   .trump-card strong {
     font-size:16px
   }
-  .trump-art {
-    height:50px;
-    width:50px;
-    font-size:28px
-  }
   .trump-detail {
     flex-direction:column;
     align-items:stretch;
@@ -1785,17 +1518,8 @@ dialog>p {
   .trump-detail>div:last-child {
     justify-content:flex-end
   }
-  .sidebar {
-    grid-template-columns:1fr
-  }
-  .sidebar .panel {
-    padding:20px
-  }
   .journal ol {
     max-height:185px
-  }
-  .sidebar .small-panel {
-    display:block
   }
   .catalog {
     grid-template-columns:repeat(2,minmax(0,1fr))

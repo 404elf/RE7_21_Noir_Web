@@ -96,7 +96,7 @@ export class SettingsEditor {
     this.readonly = readonly; this.save = save;
     this.dialog.classList.toggle('settings-readonly', readonly);
     for (const id of ['settings-roll','settings-roll-weights','settings-unlock']) $(id).hidden = readonly;
-    $('settings-title').textContent = readonly ? '本房间的完整规则' : room ? '修改房间规则' : '打造你的牌局';
+    $('settings-title').textContent = readonly ? '本房间的完整规则' : room ? '修改房间规则' : '规矩，由你来定。';
     $('settings-intro').textContent = readonly ? '双方使用同一套规则。开局后锁定，再战也会沿用。'
       : room ? '保存后，双方准备状态会取消。请一起确认新规则后再开局。'
         : '从熟悉的预设开始，或写下自己的玩法。只影响你创建的房间。';

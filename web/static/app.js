@@ -220,7 +220,7 @@ function renderPlayer(p, mine, animate) {
   const heading = element('div', null, 'player-heading');
   const label = element('div');
   const name = element('span', mine ? '你' : state.ai ? 'AI 对手' : '对手', 'player-name'); name.title = p.name;
-  label.append(element('span', p.name.slice(0, 1), 'avatar'), name, element('span', mine ? 'YOU' : 'OPPONENT', 'player-tag'));
+  label.append(name);
   const stats = element('div');
   stats.append(element('span', `♥ ${p.hp} / ${state.max_hp}`, 'health'));
   const vitality = element('progress', null, 'vitality'); vitality.max = state.max_hp; vitality.value = p.hp; vitality.setAttribute('aria-label', `${p.name} 生命 ${p.hp}`); stats.append(vitality);
@@ -408,10 +408,10 @@ function renderResult() {
   if (!result) return;
   $('result-panel').dataset.outcome = result.winner === 0 ? 'draw' : result.winner === state.pid ? 'win' : 'loss';
   const over = state.phase === 'GAMEOVER';
-  $('result-title').textContent = result.winner === 0 ? '平局。' : result.winner === state.pid ? (over ? '你赢得了本场。' : '这一手，你赢了。') : (over ? '本场落败。' : '这一手，对手胜。');
+  $('result-title').textContent = result.winner === 0 ? (over ? '本场平局。' : '平局。再赌。') : result.winner === state.pid ? (over ? '本场胜利。' : '又撑过一手。') : (over ? '本场落败。' : '又付出代价。');
   const reasons = { surrender: '玩家投降', agreement: '双方同意平局', timeout: '整场计时耗尽', preparation_timeout: '首次准备超时', disconnect: '断线超过重连宽限期' };
   if (over && state.ai?.difficulty === 'nightmare' && result.winner) $('result-title').textContent = result.winner === state.pid ? '极难挑战 · 你活下来了。' : '极难挑战 · 本场落败。';
-  $('result-text').textContent = (over && reasons[state.end_reason]) || (result.escape ? '逃脱成功，平局结束整场。' : `${current ? '本局' : `上一局（第 ${result.round} 局）`}伤害 ${result.damage}。${over ? '双方可选择再战。' : '下一局继续争夺。'}`);
+  $('result-text').textContent = (over && reasons[state.end_reason]) || (result.escape ? '逃脱成功。你离开了牌桌，本场平局。' : `${current ? '本局' : `上一局（第 ${result.round} 局）`}伤害 ${result.damage}。${over ? '还敢再赌一场？' : '别松手，还有下一局。'}`);
   $('rematch').hidden = !over;
   $('rematch').textContent = myPlayer().rematch ? '已请求 · 等待对手' : '再来一场';
 }
@@ -510,9 +510,8 @@ $('ready').onclick = () => send('ready');
 for (const [id, action] of Object.entries({ hit: 'HIT', stay: 'STAY', rematch: 'REMATCH', 'offer-draw': 'DRAW_OFFER', 'accept-draw': 'DRAW_ACCEPT', 'decline-draw': 'DRAW_DECLINE' })) $(id).onclick = () => send('action', action);
 document.addEventListener('pointerdown', (event) => {
   if (!event.target.closest('.trump-card, .trump-detail, .effect')) selectTrump(null);
-  if (!event.target.closest('#match-menu')) $('match-menu').open = false;
 });
-$('surrender').onclick = async () => { $('match-menu').open = false; if (await confirmMove('就此结束？', '投降将结束本场对局，对手获胜。', '确认投降')) send('action', 'SURRENDER'); };
+$('surrender').onclick = async () => { if (await confirmMove('认输，就到这里。', '投降将结束本场对局，对手获胜。', '确认投降')) send('action', 'SURRENDER'); };
 $('copy-invite').onclick = async () => {
   const link = inviteURL(state?.room || seat?.room).href;
   try { await navigator.clipboard.writeText(link); toast('邀请链接已复制'); }
@@ -565,7 +564,6 @@ function endDrag() {
   if (drag && $('trump-hand').hasPointerCapture(drag.pointer)) $('trump-hand').releasePointerCapture(drag.pointer);
   drag?.ghost?.remove(); drag = null; document.body.classList.remove('dragging');
   $('gesture-hint').textContent = '上拉出牌 · 右拉弃牌 · 点选查看';
-  document.querySelectorAll('.drop-hover').forEach((n) => n.classList.remove('drop-hover'));
 }
 document.addEventListener('pointermove', (event) => {
   if (!drag || event.pointerId !== drag.pointer) return;
@@ -617,7 +615,7 @@ document.addEventListener('keydown', (event) => {
 async function init() {
   const code = new URLSearchParams(location.search).get('room');
   if (code && /^[A-Z2-9]{8}$/i.test(code)) $('room-code').value = code.toUpperCase();
-  $('nickname').value = storageRead(nameKey) || '无名旅人';
+  $('nickname').value = storageRead(nameKey) || '幸存者';
   try { const response = await fetch(new URL('api/catalog', appRoot)); if (!response.ok) throw new Error(); catalog = await response.json(); }
   catch { toast('图鉴加载失败，请检查网络后刷新。'); }
   try {

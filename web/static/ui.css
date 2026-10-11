@@ -63,20 +63,20 @@ body.playing #match-menu button { flex:1; padding:8px 12px; min-height:44px; fon
 #settings-dialog[open] { display:flex; flex-direction:column; height:min(800px,90dvh); max-height:90dvh }
 #settings-dialog .dialog-heading { position:static; padding:0 0 12px; margin:0 }
 #settings-dialog .dialog-heading h2 { margin-bottom:8px }
-#settings-intro { flex:none; margin:8px 0 12px }
+#settings-intro { flex:none; }
 #settings-form { display:flex; flex-direction:column; min-height:0; flex:1 }
 #settings-preset-label { margin:0 0 12px }
 .settings-tabs { display:flex; gap:10px; flex:none }
 .settings-tabs button { flex:1; min-height:44px; padding:10px }
 .settings-tabs button[aria-pressed="true"],.timer-presets button[aria-pressed="true"] { border-color:var(--gold); background:#4b3725; color:var(--cream) }
-.settings-panels { flex:1; min-height:0; overflow:visible; margin-top:16px; padding-right:8px }
+.settings-panels { flex:1; min-height:0; overflow:visible; }
 .settings-section { margin:0; padding:0; border:0 }
 .settings-section .settings-grid { padding-top:0 }
-.settings-file-actions { flex:none; margin-top:12px; gap:8px }
+.settings-file-actions { flex:none; gap:8px }
 .settings-file-actions button { padding:9px 12px }
 #settings-status { min-height:0; margin:8px 0 0 }
 #settings-status:empty { display:none }
-.settings-footer { flex:none; margin-top:12px; padding-top:12px }
+.settings-footer { flex:none; }
 .settings-footer p { margin:0 }
 .timer-presets { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px }
 .timer-presets button { min-height:60px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:8px }
@@ -161,7 +161,7 @@ body.playing .trump-detail p { overflow:visible; max-height:none; flex:none }
   body.playing .player-clock .clock { font-size:25px }
   .player-clock>small { grid-column:1; grid-row:3; font-size:9px }
   .match-stakes { display:flex; flex-direction:column; justify-content:center; gap:6px; padding:5px }
-  body.playing #stake-label { flex:none; width:100%; gap:6px; font-size:10px }
+  body.playing #stake-label { flex:none; width:100%; gap:6px; }
   #stake-label>div { flex-direction:column; gap:3px; align-items:center }
   #stake-label strong { font-size:22px }
   body.playing .field-effects { grid-template-columns:64px minmax(0,1fr) }
@@ -299,6 +299,7 @@ body.playing .trump-detail p { overflow:visible; max-height:none; flex:none }
   body.playing .drag-ghost { width:120px; height:98px }
 }
 @media (max-width:600px) {
+  .hero-caption p,.hero-note { display:none }
   #settings-dialog { padding:16px }
   .settings-draft-tools { flex-wrap:wrap; gap:5px; margin-bottom:10px }
   .settings-draft-tools #settings-preset-label { flex:1 1 100% }
