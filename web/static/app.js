@@ -105,7 +105,7 @@ function connect() {
       if (JSON.stringify(myPlayer()?.trumps) !== JSON.stringify(next.players.find((p) => p.id === next.pid)?.trumps)) selected = null;
       const previous = state;
       state = next;
-      if (data.type === 'state') { syncing = false; pending = null; rendered = -1; }
+      if (data.type === 'state') { clearFeedback(); syncing = false; pending = null; rendered = -1; }
       if (next.phase === 'ACTION' && next.turn === next.pid &&
           (acknowledged || data.type === 'state' || previous?.turn !== next.turn || previous?.phase !== next.phase ||
            previous?.round !== next.round || previous?.match_id !== next.match_id)) decisionStarted = performance.now();
@@ -277,17 +277,24 @@ function renderGame(animate = false) {
   document.querySelector('.hand-pages').hidden = pageCount === 1;
   if (selected !== null && selected >= cards.length) selected = null;
   $('trump-count').textContent = `${cards.length} / ${state.rules.game_settings.max_trumps_hand_size}`;
-  $('trump-hand').replaceChildren(...cards.slice(handPage * pageSize, (handPage + 1) * pageSize).map(([name], offset) => {
+  const hand = $('trump-hand'), existing = [...hand.children];
+  const buttons = cards.slice(handPage * pageSize, (handPage + 1) * pageSize).map(([name], offset) => {
     const index = handPage * pageSize + offset;
     const info = cardInfo(name);
-    const button = element('button', null, `trump-card ${info.category} ${selected === index ? 'selected' : ''}`);
-    button.dataset.index = index;
+    let button = existing[offset];
+    if (button?.dataset.name !== name || Number(button.dataset.index) !== index) {
+      button = element('button');
+      button.dataset.index = index; button.dataset.name = name;
+      button.setAttribute('aria-label', `${info.title}：${info.description}`);
+      button.append(element('span', categories[info.category], 'category'), element('strong', info.title), element('small', info.english));
+      button.onclick = () => { if (suppressClick) return; selectTrump(index); };
+    }
+    button.className = `trump-card ${info.category} ${selected === index ? 'selected' : ''}`;
     button.setAttribute('aria-pressed', String(selected === index));
-    button.setAttribute('aria-label', `${info.title}：${info.description}`);
-    button.append(element('span', categories[info.category], 'category'), element('strong', info.title), element('small', info.english));
-    button.onclick = () => { if (suppressClick) return; selectTrump(index); };
     return button;
-  }));
+  });
+  // Unrelated updates must not detach a focused/dragged card or cancel its cue.
+  if (existing.length !== buttons.length || buttons.some((button, i) => button !== existing[i])) hand.replaceChildren(...buttons);
   $('trump-hand').hidden = !cards.length;
   $('gesture-hint').hidden = !cards.length;
   updateTrumpDetail();
@@ -420,7 +427,7 @@ function updateClocks() {
     $(`clock-status-${p.id}`).textContent = !state.timer.enabled ? '' : state.paused ? '暂停' : confirming ? '确认中' : prep ? '准备' : active ? '计时中' : '等待';
     $(`clock-row-${p.id}`).classList.toggle('active', Boolean(state.timer.enabled && active && !state.paused));
     node.classList.toggle('urgent', left !== null && left <= 10 && active);
-    if (p.id === state.pid) clockFeedback(`${state.match_id}:${state.round}:${prep}`, seconds,
+    if (p.id === state.pid) clockFeedback(`${state.match_id}:${state.round}:${state.turn}:${prep}`, seconds,
       Boolean(state.timer.enabled && active && online && !syncing && !state.paused && state.phase === 'ACTION'), node);
   }
   if (state.paused) {

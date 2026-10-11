@@ -5,7 +5,7 @@ const $ = (id) => document.getElementById(id);
 const animations = new Set(), voices = new Set();
 const canvas = $('particles'), context = canvas.getContext('2d');
 let audio, noise, sound = false, particles = [], frame = null, lastFrame = 0;
-let warning = { key: null, seconds: null };
+let warning = { key: null, seconds: null, fired: new Set() };
 try { sound = localStorage.getItem(soundKey) === 'on'; } catch { /* Preferences are optional. */ }
 
 function soundButton() {
@@ -19,7 +19,7 @@ function unlockAudio() {
   if (!sound || document.hidden) return;
   try {
     audio ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audio.state === 'suspended') audio.resume().catch(() => {});
+    if (audio.state === 'suspended' || audio.state === 'interrupted') audio.resume().catch(() => {});
   } catch { sound = false; soundButton(); }
 }
 for (const event of ['pointerdown', 'keydown']) document.addEventListener(event, (e) => {
@@ -206,15 +206,20 @@ export function feedback(previous, next) {
 }
 
 export function clockFeedback(key, seconds, running, node) {
-  if (warning.key !== key) warning = { key, seconds };
-  if (running && !document.hidden && seconds !== null && warning.seconds !== null &&
-    (warning.seconds > 10 && seconds <= 10 || warning.seconds > 3 && seconds <= 3)) {
-    tone('warning'); accent(node, '#d76f52', 160);
+  if (warning.key !== key) warning = { key, seconds, fired: new Set() };
+  if (running && !document.hidden && seconds !== null && warning.seconds !== null) {
+    const crossed = [10, 3].filter((limit) => !warning.fired.has(limit) && warning.seconds > limit && seconds <= limit);
+    if (crossed.length) {
+      crossed.forEach((limit) => warning.fired.add(limit));
+      tone('warning'); accent(node, '#d76f52', 160);
+    }
   }
-  warning.seconds = seconds;
+  warning.seconds = document.hidden ? null : seconds;
 }
 
 export function clearFeedback() {
+  // Resume from the current clock, without replaying time elapsed out of view.
+  warning.seconds = null;
   for (const effect of animations) effect.cancel();
   animations.clear();
   if (frame !== null) cancelAnimationFrame(frame);
@@ -225,5 +230,8 @@ export function clearFeedback() {
 motion.addEventListener('change', () => { if (motion.matches) clearFeedback(); });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { clearFeedback(); audio?.suspend().catch(() => {}); }
+  // Only resume an engine already unlocked by trusted input. A saved preference
+  // alone must not create audio or replay any sound when a page is restored.
+  else if (audio) unlockAudio();
 });
 addEventListener('pagehide', clearFeedback);

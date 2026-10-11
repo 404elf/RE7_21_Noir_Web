@@ -166,6 +166,24 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('.field-effects')).to_be_visible()
             expect(a.locator('.empty-effects')).to_have_count(1)
 
+            # An opponent update must leave an unchanged hand attached, focused,
+            # and usable by the keyboard. Count DOM churn as well as focus loss.
+            a.locator('.trump-card').first.click()
+            a.evaluate('''() => {
+              window.heldButton = document.querySelector('.trump-card');
+              window.handChanges = 0;
+              new MutationObserver(records => {
+                window.handChanges += records.filter(r => r.type === 'childList').length;
+              }).observe(document.getElementById('trump-hand'), {childList: true});
+            }''')
+            b.locator('#offer-draw').click()
+            expect(a.locator('#draw-request')).to_be_visible()
+            assert a.evaluate('document.activeElement === window.heldButton'), 'An unchanged hand lost keyboard focus'
+            assert a.evaluate('window.handChanges') == 0, 'An unrelated patch rebuilt the hand'
+            a.locator('#decline-draw').click()
+            expect(a.locator('#draw-request')).to_be_hidden()
+            report['stable_hand'] = {'keyboard_focus': True, 'unrelated_patch_child_changes': 0}
+
             for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390)]:
                 a.set_viewport_size({'width': width, 'height': height})
                 a.wait_for_timeout(80)
@@ -283,8 +301,21 @@ def check_usability(url, short_auth=True, network=False):
             old_actions = a.evaluate('window.uiWire.actions')
             started = time.monotonic()
             a.locator('.trump-card').first.press('ArrowRight')
-            expect(a.locator('#turn-hint')).to_contain_text('正在确认弃牌')
-            expect(a.locator('.trump-card.pending')).to_have_attribute('aria-busy', 'true')
+            # The slow hint exists only between the 1s notice and 1.5s sync;
+            # assertion backoff can skip that window. Observe the mutation itself,
+            # without polling via eval (which the production CSP forbids).
+            busy = a.evaluate('''() => new Promise((resolve, reject) => {
+              const hint = document.getElementById('turn-hint');
+              const observer = new MutationObserver(read);
+              const timeout = setTimeout(() => { observer.disconnect(); reject('Missing slow confirmation'); }, 5000);
+              function read() {
+                if (!hint.textContent.includes('正在确认弃牌')) return;
+                observer.disconnect(); clearTimeout(timeout);
+                resolve(document.querySelector('.trump-card.pending')?.getAttribute('aria-busy'));
+              }
+              observer.observe(hint, {childList:true}); read();
+            })''')
+            assert busy == 'true'
             assert_count(a, before - 5)
             a.locator('.trump-card').first.click()
             expect(a.locator('#stay')).to_be_enabled()
