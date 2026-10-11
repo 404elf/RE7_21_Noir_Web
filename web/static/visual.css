@@ -1,0 +1,130 @@
+/* Material and motion only: the established table geometry stays in game/ui.css. */
+:root { --edge:#cfac7130; --surface:linear-gradient(135deg,#352a20e8,#1c1713f5) }
+button,input,select { -webkit-tap-highlight-color:transparent }
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
+  outline:2px solid #f0d49a; outline-offset:3px;
+}
+.primary {
+  background:linear-gradient(115deg,#efd3a1 0%,#c39b63 60%,#b48b53);
+  border-color:#e0bd83; box-shadow:inset 0 1px #fff5,0 3px 12px #0003;
+}
+.secondary { background:linear-gradient(145deg,#372a1e,#241d16); box-shadow:inset 0 1px #ffffff04 }
+.primary,.secondary,.text-button { transition:background-color .14s,border-color .14s,box-shadow .14s,filter .14s }
+.primary:active:not(:disabled),.secondary:active:not(:disabled) { filter:brightness(.88); box-shadow:inset 0 2px 5px #0004 }
+@media (hover:hover) {
+  .primary:hover:not(:disabled) { filter:brightness(1.08); box-shadow:inset 0 1px #fff6,0 4px 20px #bd914124 }
+  .secondary:hover:not(:disabled) { border-color:#c9a771; box-shadow:inset 0 1px #ffffff08,0 3px 12px #0003 }
+}
+
+/* The home keeps its original composition, with a brief entrance and heavier stock. */
+.entry-panel { background:radial-gradient(ellipse at 0 0,#84623c22,transparent 70%),linear-gradient(140deg,#292019e8,#181310ee); box-shadow:inset 0 1px #efd4a126,0 16px 54px #0004 }
+.hero-card.front { box-shadow:inset 0 0 0 1px #fff4,3px 4px 0 #96754e,12px 24px 38px #0007 }
+.hero-card.back { box-shadow:2px 3px 0 #74552e,6px 18px 28px #0006 }
+.hero-card.third { box-shadow:2px 3px 0 #725637,8px 16px 28px #0005 }
+.hero h1 { text-shadow:0 4px 32px #caa5680b }
+
+/* Warm felt, inset brass edges and a clear local cue for the active player. */
+body.playing .table {
+  isolation:isolate;
+  background:radial-gradient(ellipse at 42% 35%,#55432b35,transparent 72%),repeating-linear-gradient(0deg,#ffffff01 0 1px,transparent 1px 3px),linear-gradient(125deg,#2a241bef,#171511f7);
+  box-shadow:inset 0 0 0 1px var(--edge),inset 0 0 60px #0003,0 8px 28px #0003;
+}
+body.playing .table-header { border-bottom:1px solid #d3b27d1f }
+body.playing .table-top .eyebrow { letter-spacing:.2em }
+body.playing #board-turn { color:#b9aa94; transition:color .16s }
+body.playing .table.my-turn #board-turn { color:#efd09b }
+body.playing #board-turn::before { content:''; display:inline-block; width:5px; height:5px; margin:0 7px 2px 0; background:currentColor; transform:rotate(45deg) }
+body.playing #board-turn:empty::before { display:none }
+body.playing .player { position:relative; border-radius:3px; transition:background-color .16s }
+body.playing .player[data-active="true"] { background:linear-gradient(90deg,#dcb57e0c,transparent 75%) }
+body.playing .player-heading { position:relative }
+body.playing .player[data-active="true"] .player-name { color:#f1d49f; text-shadow:0 0 18px #cba46d24 }
+body.playing .player[data-stopped="true"] .player-name { color:#b9ad99 }
+body.playing .health { color:#dba68c; font-variant-numeric:tabular-nums }
+body.playing .vitality { border-radius:2px; box-shadow:0 0 0 1px #c78b531f }
+.vitality::-webkit-progress-bar { background:#100e0bcc; border-radius:2px }
+.vitality::-webkit-progress-value { background:linear-gradient(90deg,#87442f,#c58362); border-radius:2px }
+.vitality::-moz-progress-bar { background:linear-gradient(90deg,#87442f,#c58362); border-radius:2px }
+body.playing .field-effects { background:linear-gradient(90deg,transparent,#cfad771a,transparent) top/100% 1px no-repeat,linear-gradient(90deg,transparent,#cfad771a,transparent) bottom/100% 1px no-repeat }
+body.playing .total strong { font-variant-numeric:tabular-nums; text-shadow:0 2px 10px #0005 }
+body.playing .total.exact strong { color:#f4d894; text-shadow:0 0 20px #e5bc593b }
+body.playing .total.exact small { color:#dfc080 }
+body.playing .total.bust strong { color:#e19174 }
+.health-delta { position:absolute; right:0; top:0; color:#ef9d7d; font:bold 24px/1 var(--serif); pointer-events:none; text-shadow:0 2px 8px #000 }
+.health-delta.gain { color:#b9d3b4 }
+
+/* Legible numbers on ivory stock; shading never covers the value. */
+body.playing .card-face { border-radius:3px }
+body.playing .card-front {
+  background:radial-gradient(ellipse at 25% 15%,#fff8,transparent 65%),repeating-linear-gradient(0deg,#65432208 0 1px,transparent 1px 3px),linear-gradient(125deg,#eadcc0,#d3ba90);
+  border-color:#bd9c69; box-shadow:inset 0 0 0 1px #fff5,1px 2px 0 #886943,3px 5px 10px #0006;
+}
+body.playing .card-front::before { inset:5px; border-color:#88623f66; border-radius:1px }
+body.playing .card-number { color:#3a271c; text-shadow:0 1px #fff8 }
+body.playing .card-rank { color:#705035 }
+body.playing .card-back {
+  background:radial-gradient(ellipse at 45% 35%,#94734824,transparent 70%),repeating-linear-gradient(45deg,#c99b5530 0 1px,transparent 1px 6px),repeating-linear-gradient(-45deg,#c99b5520 0 1px,transparent 1px 6px),#251b14;
+  box-shadow:inset 0 0 0 4px #211912,inset 0 0 0 5px #ad854980,1px 2px 0 #785b36,3px 5px 10px #0006;
+}
+body.playing .card-back strong { color:#d4b074; text-shadow:0 1px 1px #000,0 0 20px #d0aa6533 }
+body.playing .card-private { color:#f0d5a3; background:#3a291be8; padding:2px 5px; border-radius:2px; letter-spacing:.14em }
+
+/* Category tints and engraving give each small trump card a recognizable face. */
+body.playing .trump-card {
+  isolation:isolate; overflow:hidden;
+  background:radial-gradient(ellipse at 100% 0,#bda17414,transparent 75%),linear-gradient(135deg,#32291f,#211c17);
+  border-color:#9a7c4f70; box-shadow:inset 0 1px #fff06,0 3px 6px #0004;
+  transition:transform .1s,border-color .12s,box-shadow .12s;
+}
+body.playing .trump-card::before {
+  content:''; display:block; position:absolute; inset:0 auto 0 0; width:2px;
+  background:var(--accent); opacity:.65; pointer-events:none;
+}
+.card-emblem { position:absolute; right:6px; bottom:-8px; z-index:-1; font:68px/1 var(--serif); color:var(--accent); opacity:.10; pointer-events:none }
+body.playing .trump-card .category { color:var(--accent); letter-spacing:.09em }
+body.playing .trump-card>small { color:#ac9c85; letter-spacing:.035em }
+body.playing .trump-card.selected { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent),0 5px 16px #0006 }
+body.playing .trump-card.selected .card-emblem { opacity:.2 }
+body.playing .trump-card.selected::before { opacity:1 }
+@media (hover:hover) {
+  body.playing .trump-card:hover { border-color:var(--accent); box-shadow:inset 0 1px #fff1,0 5px 16px #0006 }
+}
+body.playing button.effect { background:linear-gradient(140deg,#423321,#2a2118); box-shadow:inset 0 1px #efd29a16,0 2px 6px #0003 }
+body.playing button.effect.opposing { background:linear-gradient(140deg,#432820,#2b1c17) }
+
+/* All depth is inset, so compact mobile controls keep their original hit areas. */
+body.playing .table-center,.match-clock,.match-stakes,body.playing .trump-detail,body.playing .result-panel {
+  background:var(--surface); box-shadow:inset 0 0 0 1px var(--edge),inset 0 1px #f1d6a30a,0 4px 12px #0002;
+}
+body.playing .table-center { background:radial-gradient(ellipse at 10% 10%,#b1843729,transparent 80%),var(--surface) }
+body.playing .target-seal strong { color:#efd09b; text-shadow:0 2px 12px #d4a4501f }
+.player-clock.active .clock { text-shadow:0 0 16px #d9b16c2e }
+body.playing .trump-detail { box-shadow:inset 2px 0 #cfaa6a, inset 0 0 0 1px var(--edge),0 6px 20px #0005 }
+body.playing .result-panel[data-outcome="win"] { background:radial-gradient(ellipse at 0 0,#bb95422b,transparent 85%),var(--surface); box-shadow:inset 2px 0 #d6b16e,inset 0 0 0 1px var(--edge) }
+body.playing .result-panel[data-outcome="loss"] { box-shadow:inset 2px 0 #b26349,inset 0 0 0 1px #bd775a30 }
+body.playing .result-panel[data-outcome="loss"] h2 { color:#dea287 }
+dialog { background:radial-gradient(ellipse at 0 0,#80603618,transparent 70%),#1d1713; border-color:#96774a; box-shadow:inset 0 1px #f4d49e24,0 24px 100px #000a }
+dialog::backdrop { background:#090807ba; backdrop-filter:blur(6px) }
+.ai-choice[aria-pressed="true"],.settings-tabs button[aria-pressed="true"],.timer-presets button[aria-pressed="true"] { box-shadow:inset 0 0 0 1px #d1ad6b66,inset 0 1px #f3dbac22 }
+
+@media (prefers-reduced-motion:no-preference) {
+  .hero-cards { animation:cards-arrive .55s cubic-bezier(.2,.7,.3,1) both }
+  .entry-panel { animation:panel-arrive .35s ease-out both }
+  dialog[open] { animation:panel-arrive .16s ease-out }
+  dialog[open]::backdrop { animation:backdrop-arrive .16s ease-out }
+  body.playing .trump-detail:not([hidden]) { animation:detail-arrive .12s ease-out }
+}
+@keyframes cards-arrive { from { opacity:.6; translate:0 18px } to { opacity:1; translate:0 0 } }
+@keyframes panel-arrive { from { opacity:.6; translate:0 7px } to { opacity:1; translate:0 0 } }
+@keyframes detail-arrive { from { opacity:.65; translate:0 3px } to { opacity:1; translate:0 0 } }
+@keyframes backdrop-arrive { from { opacity:0 } to { opacity:1 } }
+@media (max-width:760px), (max-height:520px) {
+  body.playing .card-front::before { inset:3px }
+  body.playing .card-private { padding:1px 3px; letter-spacing:.07em }
+  body.playing .table-top .eyebrow { letter-spacing:.1em }
+  .card-emblem { font-size:54px; right:4px; bottom:-6px }
+  .health-delta { font-size:18px }
+}
+@media (prefers-reduced-motion:reduce) {
+  .primary,.secondary,.text-button,body.playing .player,body.playing #board-turn,body.playing .trump-card { transition:none }
+}

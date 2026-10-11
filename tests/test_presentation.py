@@ -119,9 +119,61 @@ def test_background_cleanup_does_not_replay_elapsed_clock_warning(page):
 
 
 def test_reduced_motion_cancels_existing_and_future_deals(page):
-    page.evaluate("presentation.deal(document.getElementById('card'))")
-    assert page.locator('#card').evaluate('(node) => node.getAnimations().length') == 1
+    # Observe and hold the 120ms cue in one browser task so a slow test runner
+    # cannot miss it before the preference change is delivered.
+    assert page.evaluate('''() => {
+      const card = document.getElementById('card'); presentation.deal(card);
+      const effects = card.getAnimations(); effects.forEach(effect => effect.pause());
+      return effects.length;
+    }''') == 1
     page.emulate_media(reduced_motion='reduce')
     page.wait_for_function("() => !document.getElementById('card').getAnimations().length")
     page.evaluate("presentation.deal(document.getElementById('card'))")
     assert page.locator('#card').evaluate('(node) => node.getAnimations().length') == 0
+
+
+def prepare_result_feedback(page):
+    page.evaluate('''() => {
+      for (const id of ['my-player', 'opponent']) {
+        const player = document.createElement('section'); player.id = id;
+        player.innerHTML = '<div class="player-heading"><span class="health">8 / 10</span>' +
+          '<progress class="vitality" max="10" value="8"></progress></div><div class="total"><strong>20</strong></div>';
+        document.body.append(player);
+      }
+      for (const id of ['trump-hand', 'result-panel', 'result-title']) {
+        const node = document.createElement('div'); node.id = id; document.body.append(node);
+      }
+      window.beforeResult = {match_id:'match-1', pid:1, target:21, phase:'ACTION', turn:2,
+        players:[{id:1, hp:10, total:20, trumps:[]}, {id:2, hp:6, total:18, trumps:[]}], events:[{id:1}]};
+      window.afterResult = {...beforeResult, phase:'RESULT',
+        players:[{...beforeResult.players[0], hp:8}, {...beforeResult.players[1], hp:8}],
+        events:[{id:1}, {id:2, event:'result', winner:2}]};
+    }''')
+
+
+def test_health_feedback_expires_and_never_replays_unchanged_result(page):
+    prepare_result_feedback(page)
+    page.evaluate('presentation.feedback(beforeResult, afterResult)')
+    expect(page.locator('#my-player .health-delta')).to_have_text('−2')
+    expect(page.locator('#opponent .health-delta.gain')).to_have_text('+2')
+    expect(page.locator('.health-delta').first).to_have_attribute('aria-hidden', 'true')
+    expect(page.locator('.health-delta')).to_have_count(0, timeout=1500)
+    page.evaluate('presentation.feedback(afterResult, afterResult)')
+    expect(page.locator('.health-delta')).to_have_count(0)
+    assert page.evaluate('document.getAnimations().length') == 0
+
+
+@pytest.mark.parametrize('cleanup', ['hidden', 'reduce', 'snapshot'])
+def test_transient_feedback_is_removed_on_interruption(page, cleanup):
+    prepare_result_feedback(page)
+    page.evaluate('presentation.feedback(beforeResult, afterResult)')
+    expect(page.locator('.health-delta')).to_have_count(2)
+    if cleanup == 'reduce':
+        page.emulate_media(reduced_motion='reduce')
+    else:
+        page.evaluate('setHidden(true)' if cleanup == 'hidden' else 'presentation.clearFeedback()')
+    expect(page.locator('.health-delta')).to_have_count(0)
+    assert page.evaluate('document.getAnimations().length') == 0
+    if cleanup != 'snapshot':
+        page.evaluate('presentation.feedback(beforeResult, afterResult)')
+        expect(page.locator('.health-delta')).to_have_count(0)

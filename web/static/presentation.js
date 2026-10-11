@@ -2,7 +2,7 @@
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 const soundKey = `${new URL('./', import.meta.url).pathname}noir-sound`;
 const $ = (id) => document.getElementById(id);
-const animations = new Set(), voices = new Set();
+const animations = new Set(), voices = new Set(), labels = new Set();
 const canvas = $('particles'), context = canvas.getContext('2d');
 let audio, noise, sound = false, particles = [], frame = null, lastFrame = 0;
 let warning = { key: null, seconds: null, fired: new Set() };
@@ -102,12 +102,13 @@ function animate(node, frames, duration = 120) {
   const effect = node.animate(frames, { duration, easing: 'cubic-bezier(.2,.7,.3,1)' });
   animations.add(effect);
   effect.finished.then(() => animations.delete(effect), () => animations.delete(effect));
+  return effect;
 }
 
 export function deal(node) {
   // Values are fully visible from the first frame, including under high RTT.
   animate(node, [
-    { transform: 'translate(9px,-6px) rotate(2deg)' },
+    { transform: 'translate(16px,-8px) rotate(3deg)' },
     { transform: 'none' },
   ]);
 }
@@ -124,6 +125,24 @@ export function submitted(action, card) {
 function accent(node, color = '#d5b278', duration = 220) {
   animate(node, [{ color, textShadow: `0 0 14px ${color}80` },
     { textShadow: '0 0 0 transparent' }], duration);
+}
+
+function healthDelta(root, difference) {
+  if (motion.matches || document.hidden) return;
+  const anchor = root?.querySelector('.player-heading');
+  if (!anchor) return;
+  const label = document.createElement('span');
+  label.className = `health-delta${difference > 0 ? ' gain' : ''}`;
+  label.textContent = `${difference > 0 ? '+' : '−'}${Math.abs(difference)}`;
+  label.setAttribute('aria-hidden', 'true'); // The updated health already has a label.
+  anchor.append(label); labels.add(label);
+  const effect = animate(label, [
+    { opacity: 1, transform: 'translateY(6px)' },
+    { opacity: 1, transform: 'translateY(-5px)', offset: .65 },
+    { opacity: 0, transform: 'translateY(-12px)' },
+  ], 460);
+  const remove = () => { label.remove(); labels.delete(label); };
+  effect.finished.then(remove, remove);
 }
 
 function burst(node, color, count = 8) {
@@ -162,13 +181,16 @@ export function feedback(previous, next) {
   for (const player of next.players) {
     const old = sameMatch && previous.players.find((p) => p.id === player.id);
     const root = $(player.id === next.pid ? 'my-player' : 'opponent');
+    if (old && player.hp !== old.hp) healthDelta(root, player.hp - old.hp);
     if (old && player.hp < old.hp) {
       accent(root.querySelector('.health'), '#d76f52', 320);
       animate(root.querySelector('.vitality'), [{ filter: 'brightness(1.8)' }, { filter: 'none' }], 280);
     }
     if (old && player.stake !== old.stake) accent($('stake-label').children[player.id === next.pid ? 1 : 0]);
-    if (old && player.total !== old.total) accent(root.querySelector('.total strong'),
-      player.total > next.target ? '#d76f52' : player.total === next.target ? '#efd496' : '#d5b278');
+    if (old && player.total !== old.total) {
+      accent(root.querySelector('.total strong'), player.total > next.target ? '#d76f52' : player.total === next.target ? '#efd496' : '#d5b278');
+      animate(root.querySelector('.total'), [{ transform: 'translateY(3px) scale(1.04)' }, { transform: 'none' }], 160);
+    }
   }
   if (sameMatch && next.target !== previous.target) accent($('target'));
   if (sameMatch) {
@@ -195,6 +217,7 @@ export function feedback(previous, next) {
     const winner = result.winner ?? next.winner;
     tone(winner === 0 ? 'draw' : winner === next.pid ? 'win' : 'loss');
     accent($('result-title'), winner === next.pid ? '#efd496' : winner === 0 ? '#d5b278' : '#d76f52', 320);
+    animate($('result-panel'), [{ transform: 'translateY(7px)', opacity: .7 }, { transform: 'none', opacity: 1 }], 220);
     if (next.phase === 'GAMEOVER' && winner === next.pid) burst($('result-title'), '#e3bc74', 16);
   } else if (damage) tone('damage');
   else if (trump) tone('trump');
@@ -202,7 +225,11 @@ export function feedback(previous, next) {
   else if (fresh.some((e) => e.event === 'discard')) tone('discard');
   else if (myTurn) tone('turn');
   else if (fresh.some((e) => e.event === 'stay')) tone('stay');
-  if (myTurn) accent($('turn-hint'));
+  if (myTurn) {
+    accent($('turn-hint'));
+    animate($('board-turn'), [{ transform: 'translateX(5px)', opacity: .6 }, { transform: 'none', opacity: 1 }], 180);
+    animate($('my-player'), [{ boxShadow: 'inset 2px 0 #e3c087' }, { boxShadow: 'inset 0 0 transparent' }], 280);
+  }
 }
 
 export function clockFeedback(key, seconds, running, node) {
@@ -222,6 +249,8 @@ export function clearFeedback() {
   warning.seconds = null;
   for (const effect of animations) effect.cancel();
   animations.clear();
+  for (const label of labels) label.remove();
+  labels.clear();
   if (frame !== null) cancelAnimationFrame(frame);
   frame = null; particles = [];
   context?.clearRect(0, 0, canvas.width, canvas.height);

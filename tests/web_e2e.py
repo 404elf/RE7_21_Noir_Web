@@ -214,7 +214,17 @@ def check_heartbeat(url):
             assert saved
             # This server uses a 1.5-second heartbeat deadline; the browser's
             # first ping is at 10 seconds, causing an actual server timeout.
-            page.wait_for_function("() => noirCloseCodes.includes(1012) && noirConnections >= 2")
+            # Keep the predicate compiled once: Playwright 1.48's repeated
+            # string evaluation can violate script-src 'self' on a later tick.
+            page.evaluate('''() => new Promise((resolve, reject) => {
+              const interval = setInterval(() => {
+                if (!noirCloseCodes.includes(1012) || noirConnections < 2) return;
+                clearInterval(interval); clearTimeout(timeout); resolve();
+              }, 25);
+              const timeout = setTimeout(() => {
+                clearInterval(interval); reject(new Error('Heartbeat reconnect timed out'));
+              }, 10000);
+            })''')
             expect(page.locator('#ready')).to_be_enabled()
             assert page.evaluate("sessionStorage.getItem(" + json.dumps(saved[0]) + ")") == saved[1]
             assert page.locator('#room-label').inner_text() == room

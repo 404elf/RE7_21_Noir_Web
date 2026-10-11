@@ -215,6 +215,8 @@ function renderLobby() {
 
 function renderPlayer(p, mine, animate) {
   const root = $(mine ? 'my-player' : 'opponent');
+  root.dataset.active = String(state.phase === 'ACTION' && state.turn === p.id && !state.paused);
+  root.dataset.stopped = String(Boolean(p.stopped));
   const heading = element('div', null, 'player-heading');
   const label = element('div');
   const name = element('span', mine ? '你' : state.ai ? 'AI 对手' : '对手', 'player-name'); name.title = p.name;
@@ -251,7 +253,7 @@ function renderPlayer(p, mine, animate) {
     if (index === 0 && mine && !tag) card.querySelector('.card-front').append(element('small', 'PRIVATE', 'card-private'));
     cards.append(card);
   });
-  const total = element('div', null, `total ${p.total > state.target ? 'bust' : ''}`);
+  const total = element('div', null, `total ${p.total > state.target ? 'bust' : p.total === state.target ? 'exact' : ''}`);
   total.append(element('strong', p.total === null ? '? + ' + p.hand.slice(1).reduce((a, b) => a + b, 0) : String(p.total)), element('small', p.total === null ? '明牌点数' : p.total > state.target ? '已爆牌' : '当前点数'));
   oldCards.forEach((card) => card.remove()); cards.querySelector('.total')?.remove();
   root.querySelector(':scope > .total')?.remove(); root.append(total);
@@ -286,6 +288,9 @@ function renderGame(animate = false) {
       button = element('button');
       button.dataset.index = index; button.dataset.name = name;
       button.setAttribute('aria-label', `${info.title}：${info.description}`);
+      const emblem = element('span', { attack: '♠', guard: '◇', draw: '↻', control: '⌘', resource: '✦', target: '◎' }[info.category] || '◆', 'card-emblem');
+      emblem.setAttribute('aria-hidden', 'true');
+      button.append(emblem);
       button.append(element('span', categories[info.category], 'category'), element('strong', info.title), element('small', info.english));
       button.onclick = () => { if (suppressClick) return; selectTrump(index); };
     }
@@ -401,6 +406,7 @@ function renderResult() {
   $('result-panel').hidden = !current || !result;
   document.querySelector('.turn-actions').hidden = current;
   if (!result) return;
+  $('result-panel').dataset.outcome = result.winner === 0 ? 'draw' : result.winner === state.pid ? 'win' : 'loss';
   const over = state.phase === 'GAMEOVER';
   $('result-title').textContent = result.winner === 0 ? '平局。' : result.winner === state.pid ? (over ? '你赢得了本场。' : '这一手，你赢了。') : (over ? '本场落败。' : '这一手，对手胜。');
   const reasons = { surrender: '玩家投降', agreement: '双方同意平局', timeout: '整场计时耗尽', preparation_timeout: '首次准备超时', disconnect: '断线超过重连宽限期' };
