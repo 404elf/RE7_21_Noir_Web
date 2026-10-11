@@ -1,5 +1,5 @@
 /* Material and motion only: the established table geometry stays in game/ui.css. */
-:root { --edge:#cfac7130; --surface:linear-gradient(135deg,#352a20e8,#1c1713f5) }
+:root { --edge:#b5a47b38; --surface:linear-gradient(135deg,#2a2c23ee,#191c18f5) }
 button,input,select { -webkit-tap-highlight-color:transparent }
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   outline:2px solid #f0d49a; outline-offset:3px;
@@ -16,35 +16,35 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible {
   .secondary:hover:not(:disabled) { border-color:#c9a771; box-shadow:inset 0 1px #ffffff08,0 3px 12px #0003 }
 }
 
-/* The home keeps its original composition, with a brief entrance and heavier stock. */
-.entry-panel { background:radial-gradient(ellipse at 0 0,#84623c22,transparent 70%),linear-gradient(140deg,#292019e8,#181310ee); box-shadow:inset 0 1px #efd4a126,0 16px 54px #0004 }
+/* One arrival on the cards; the room itself remains still. */
+.entry-panel { background:radial-gradient(ellipse at 0 0,#9b936119,transparent 70%),linear-gradient(140deg,#272a22e8,#181b17ee); box-shadow:inset 0 1px #efd4a126,0 16px 54px #0004 }
 .hero-card.front { box-shadow:inset 0 0 0 1px #fff4,3px 4px 0 #96754e,12px 24px 38px #0007 }
 .hero-card.back { box-shadow:2px 3px 0 #74552e,6px 18px 28px #0006 }
 .hero-card.third { box-shadow:2px 3px 0 #725637,8px 16px 28px #0005 }
 .hero h1 { text-shadow:0 4px 32px #caa5680b }
 
-/* Warm felt, inset brass edges and a clear local cue for the active player. */
+/* Worn felt, restrained brass and a clear local cue for the active player. */
 body.playing .table {
   isolation:isolate;
-  background:radial-gradient(ellipse at 42% 35%,#55432b35,transparent 72%),repeating-linear-gradient(0deg,#ffffff01 0 1px,transparent 1px 3px),linear-gradient(125deg,#2a241bef,#171511f7);
+  background:radial-gradient(ellipse at 42% 35%,#7b795328,transparent 72%),repeating-linear-gradient(0deg,#ffffff01 0 1px,transparent 1px 3px),linear-gradient(125deg,#2a2c23ef,#181c17f7);
   box-shadow:inset 0 0 0 1px var(--edge),inset 0 0 60px #0003,0 8px 28px #0003;
 }
 body.playing .table-header { border-bottom:1px solid #d3b27d1f }
-body.playing .table-top .eyebrow { letter-spacing:.2em }
+body.playing .table-top .eyebrow { letter-spacing:.08em }
 body.playing #board-turn { color:#b9aa94; transition:color .16s }
 body.playing .table.my-turn #board-turn { color:#efd09b }
 body.playing #board-turn::before { content:''; display:inline-block; width:5px; height:5px; margin:0 7px 2px 0; background:currentColor; transform:rotate(45deg) }
 body.playing #board-turn:empty::before { display:none }
 body.playing .player { position:relative; border-radius:3px; transition:background-color .16s }
-body.playing .player[data-active="true"] { background:linear-gradient(90deg,#dcb57e0c,transparent 75%) }
+body.playing .player[data-active="true"] { background:linear-gradient(90deg,#dcb57e10,transparent 75%); box-shadow:inset 2px 0 #c7ad7866 }
 body.playing .player-heading { position:relative }
 body.playing .player[data-active="true"] .player-name { color:#f1d49f; text-shadow:0 0 18px #cba46d24 }
 body.playing .player[data-stopped="true"] .player-name { color:#b9ad99 }
 body.playing .health { color:#dba68c; font-variant-numeric:tabular-nums }
 body.playing .vitality { border-radius:2px; box-shadow:0 0 0 1px #c78b531f }
 .vitality::-webkit-progress-bar { background:#100e0bcc; border-radius:2px }
-.vitality::-webkit-progress-value { background:linear-gradient(90deg,#87442f,#c58362); border-radius:2px }
-.vitality::-moz-progress-bar { background:linear-gradient(90deg,#87442f,#c58362); border-radius:2px }
+.vitality::-webkit-progress-value { background:linear-gradient(90deg,#6f362e,#ba765c); border-radius:2px }
+.vitality::-moz-progress-bar { background:linear-gradient(90deg,#6f362e,#ba765c); border-radius:2px }
 body.playing .field-effects { background:linear-gradient(90deg,transparent,#cfad771a,transparent) top/100% 1px no-repeat,linear-gradient(90deg,transparent,#cfad771a,transparent) bottom/100% 1px no-repeat }
 body.playing .total strong { font-variant-numeric:tabular-nums; text-shadow:0 2px 10px #0005 }
 body.playing .total.exact strong { color:#f4d894; text-shadow:0 0 20px #e5bc593b }
@@ -56,7 +56,7 @@ body.playing .total.bust strong { color:#e19174 }
 /* Legible numbers on ivory stock; shading never covers the value. */
 body.playing .card-face { border-radius:3px }
 body.playing .card-front {
-  background:radial-gradient(ellipse at 25% 15%,#fff8,transparent 65%),repeating-linear-gradient(0deg,#65432208 0 1px,transparent 1px 3px),linear-gradient(125deg,#eadcc0,#d3ba90);
+  background:radial-gradient(ellipse at 25% 15%,#fff8,transparent 65%),repeating-linear-gradient(0deg,#65432208 0 1px,transparent 1px 3px),linear-gradient(125deg,#e4dcc5,#cabe9f);
   border-color:#bd9c69; box-shadow:inset 0 0 0 1px #fff5,1px 2px 0 #886943,3px 5px 10px #0006;
 }
 body.playing .card-front::before { inset:5px; border-color:#88623f66; border-radius:1px }
@@ -72,7 +72,7 @@ body.playing .card-private { color:#f0d5a3; background:#3a291be8; padding:2px 5p
 /* Category tints and engraving give each small trump card a recognizable face. */
 body.playing .trump-card {
   isolation:isolate; overflow:hidden;
-  background:radial-gradient(ellipse at 100% 0,#bda17414,transparent 75%),linear-gradient(135deg,#32291f,#211c17);
+  background:radial-gradient(ellipse at 100% 0,#bda17412,transparent 75%),linear-gradient(135deg,#2e3026,#1c211b);
   border-color:#9a7c4f70; box-shadow:inset 0 1px #fff06,0 3px 6px #0004;
   transition:transform .1s,border-color .12s,box-shadow .12s;
 }
@@ -82,7 +82,7 @@ body.playing .trump-card::before {
 }
 .card-emblem { position:absolute; right:6px; bottom:-8px; z-index:-1; font:68px/1 var(--serif); color:var(--accent); opacity:.10; pointer-events:none }
 body.playing .trump-card .category { color:var(--accent); letter-spacing:.09em }
-body.playing .trump-card>small { color:#ac9c85; letter-spacing:.035em }
+body.playing .trump-card>small { color:#b7ad9a; letter-spacing:.035em }
 body.playing .trump-card.selected { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent),0 5px 16px #0006 }
 body.playing .trump-card.selected .card-emblem { opacity:.2 }
 body.playing .trump-card.selected::before { opacity:1 }
@@ -96,20 +96,27 @@ body.playing button.effect.opposing { background:linear-gradient(140deg,#432820,
 body.playing .table-center,.match-clock,.match-stakes,body.playing .trump-detail,body.playing .result-panel {
   background:var(--surface); box-shadow:inset 0 0 0 1px var(--edge),inset 0 1px #f1d6a30a,0 4px 12px #0002;
 }
-body.playing .table-center { background:radial-gradient(ellipse at 10% 10%,#b1843729,transparent 80%),var(--surface) }
+body.playing .table-center { background:radial-gradient(ellipse at 10% 10%,#b1a76e14,transparent 80%),var(--surface) }
+/* Waiting controls stay legible; urgency is reserved for a live countdown. */
+body.playing .turn-actions button:disabled { opacity:1; color:#a89e8b; background:#20231c; border-color:#555344; box-shadow:none }
+body.playing .turn-actions button[aria-busy="true"] { border-color:#b5a47b; color:#e6ddc9 }
+.clock.urgent { color:#efa083 }
+.hero h1 { letter-spacing:-.035em; color:#e6ddc9 }
+.hero-card.front { background:repeating-linear-gradient(0deg,#00000003 0 1px,transparent 1px 4px),radial-gradient(ellipse at 30% 20%,#eee5cd,#cabe9f) }
+.entry-settings .eyebrow { letter-spacing:.08em; color:var(--muted) }
+.entry-foot p { color:var(--muted); font-size:11px }
 body.playing .target-seal strong { color:#efd09b; text-shadow:0 2px 12px #d4a4501f }
 .player-clock.active .clock { text-shadow:0 0 16px #d9b16c2e }
 body.playing .trump-detail { box-shadow:inset 2px 0 #cfaa6a, inset 0 0 0 1px var(--edge),0 6px 20px #0005 }
 body.playing .result-panel[data-outcome="win"] { background:radial-gradient(ellipse at 0 0,#bb95422b,transparent 85%),var(--surface); box-shadow:inset 2px 0 #d6b16e,inset 0 0 0 1px var(--edge) }
 body.playing .result-panel[data-outcome="loss"] { box-shadow:inset 2px 0 #b26349,inset 0 0 0 1px #bd775a30 }
 body.playing .result-panel[data-outcome="loss"] h2 { color:#dea287 }
-dialog { background:radial-gradient(ellipse at 0 0,#80603618,transparent 70%),#1d1713; border-color:#96774a; box-shadow:inset 0 1px #f4d49e24,0 24px 100px #000a }
+dialog { background:radial-gradient(ellipse at 0 0,#9b936119,transparent 70%),#1c2019; border-color:#96774a; box-shadow:inset 0 1px #f4d49e24,0 24px 100px #000a }
 dialog::backdrop { background:#090807ba; backdrop-filter:blur(6px) }
 .ai-choice[aria-pressed="true"],.settings-tabs button[aria-pressed="true"],.timer-presets button[aria-pressed="true"] { box-shadow:inset 0 0 0 1px #d1ad6b66,inset 0 1px #f3dbac22 }
 
 @media (prefers-reduced-motion:no-preference) {
   .hero-cards { animation:cards-arrive .55s cubic-bezier(.2,.7,.3,1) both }
-  .entry-panel { animation:panel-arrive .35s ease-out both }
   dialog[open] { animation:panel-arrive .16s ease-out }
   dialog[open]::backdrop { animation:backdrop-arrive .16s ease-out }
   body.playing .trump-detail:not([hidden]) { animation:detail-arrive .12s ease-out }

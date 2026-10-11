@@ -92,7 +92,7 @@ def run(url):
                         page.wait_for_timeout(50)
                 page.locator('#rematch').click()
                 expect(page.locator('#stay')).to_be_enabled()
-                assert page.locator('#round-label').inner_text() == 'ROUND 01'
+                assert page.locator('#round-label').inner_text() == '第 1 局'
                 report.append(dict(difficulty=difficulty, moves=moves, refresh=True, rematch=True))
                 page.locator('#leave-room').click()
                 page.locator('#confirm-ok').click()

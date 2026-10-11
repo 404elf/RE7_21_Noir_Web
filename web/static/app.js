@@ -250,18 +250,18 @@ function renderPlayer(p, mine, animate) {
     }
     card.querySelectorAll('.card-rank, .card-number').forEach((n) => { n.textContent = number === null ? '' : String(number); });
     const tag = card.querySelector('.card-private');
-    if (index === 0 && mine && !tag) card.querySelector('.card-front').append(element('small', 'PRIVATE', 'card-private'));
+    if (index === 0 && mine && !tag) card.querySelector('.card-front').append(element('small', '底牌', 'card-private'));
     cards.append(card);
   });
   const total = element('div', null, `total ${p.total > state.target ? 'bust' : p.total === state.target ? 'exact' : ''}`);
-  total.append(element('strong', p.total === null ? '? + ' + p.hand.slice(1).reduce((a, b) => a + b, 0) : String(p.total)), element('small', p.total === null ? '明牌点数' : p.total > state.target ? '已爆牌' : '当前点数'));
+  total.append(element('strong', p.total === null ? '? + ' + p.hand.slice(1).reduce((a, b) => a + b, 0) : String(p.total)), element('small', p.total === null ? '明牌点数' : p.total > state.target ? '已爆牌' : p.total === state.target ? '正好达标' : '当前点数'));
   oldCards.forEach((card) => card.remove()); cards.querySelector('.total')?.remove();
   root.querySelector(':scope > .total')?.remove(); root.append(total);
   if (animate) added.forEach((card) => deal(card));
 }
 
 function renderGame(animate = false) {
-  $('round-label').textContent = `ROUND ${String(state.round).padStart(2, '0')}`;
+  $('round-label').textContent = `第 ${state.round} 局`;
   $('deck-label').textContent = `牌堆剩余 ${state.deck_count} 张`;
   $('target').textContent = state.target;
   state.players.forEach((p) => renderPlayer(p, p.id === state.pid, animate));
@@ -459,7 +459,7 @@ function updateControls() {
   $('rematch').disabled = !ready || state?.players.some((p) => !p.connected) || myPlayer()?.rematch;
   const labels = { HIT: '抽牌', STAY: '停牌', TRUMP: '出牌', DISCARD: '弃牌', ready: '准备', REMATCH: '再战' };
   const slowResponse = pending && performance.now() - pending.started > 1000;
-  if (state && state.phase !== 'LOBBY') $('turn-hint').textContent = !online ? '连接中断 · 正在重连' : syncing ? '正在同步牌桌…' : slowResponse ? `正在确认${labels[pending.action] || '操作'}${pending.syncRequested ? ' · 正在核对状态' : '…'}` : state.paused ? '暂停 · 等待对手重连' : state.phase === 'GAMEOVER' ? '本场结束 · 可选择再战' : state.phase === 'RESULT' ? '双方亮牌 · 正在结算' : state.turn === state.pid ? (myPlayer().stopped ? '轮到你 · 已停牌，仍可使用王牌' : lockedDraw ? '轮到你 · 抽牌被封锁' : '轮到你 · 你的行动') : '对手的行动';
+  if (state && state.phase !== 'LOBBY') $('turn-hint').textContent = !online ? '连接中断 · 正在重连' : syncing ? '正在同步牌桌…' : slowResponse ? `正在确认${labels[pending.action] || '操作'}${pending.syncRequested ? ' · 正在核对状态' : '…'}` : state.paused ? '暂停 · 等待对手重连' : state.phase === 'GAMEOVER' ? '本场结束 · 可选择再战' : state.phase === 'RESULT' ? '双方亮牌 · 正在结算' : state.turn === state.pid ? (myPlayer().stopped ? '轮到你 · 已停牌，仍可使用王牌' : lockedDraw ? '轮到你 · 抽牌被封锁' : '轮到你了。') : '对手的行动';
   for (const [id, move] of Object.entries({ hit: 'HIT', stay: 'STAY' })) $(id).setAttribute('aria-busy', String(pending?.action === move));
   $('trump-hand').querySelectorAll('.trump-card').forEach((card) => {
     const submitting = pending?.index === Number(card.dataset.index);
@@ -471,7 +471,7 @@ function updateControls() {
   });
   $('my-player').dataset.pendingAction = pending?.action || '';
   document.querySelector('.table').classList.toggle('my-turn', Boolean(turn));
-  $('board-turn').textContent = state?.phase === 'ACTION' ? (state.turn === state.pid ? '你的行动' : '对手的行动') : '';
+  $('board-turn').textContent = state?.phase === 'ACTION' ? (!online ? '连接中断' : syncing ? '同步中' : state.paused ? '牌局暂停' : slowResponse ? '确认操作中' : state.turn === state.pid ? '你的行动' : '对手的行动') : '';
 }
 
 function renderCatalog() {
@@ -563,7 +563,7 @@ $('trump-hand').addEventListener('pointerdown', (event) => {
 function endDrag() {
   if (drag && $('trump-hand').hasPointerCapture(drag.pointer)) $('trump-hand').releasePointerCapture(drag.pointer);
   drag?.ghost?.remove(); drag = null; document.body.classList.remove('dragging');
-  $('gesture-hint').textContent = '上拉出牌 · 右拉弃牌 · 点选查看';
+  $('gesture-hint').textContent = '上拉出牌 · 右拉弃牌';
 }
 document.addEventListener('pointermove', (event) => {
   if (!drag || event.pointerId !== drag.pointer) return;

@@ -18,36 +18,32 @@
   <canvas id="particles" aria-hidden="true"></canvas>
   <div class="app-shell">
     <header class="masthead">
-      <a class="wordmark" href="./" aria-label="NOIR 首页"><b>21</b><span>/</span>NOIR<i>THE BASEMENT CLUB</i></a>
+      <a class="wordmark" href="./" aria-label="NOIR 首页"><b>21</b><span>/</span>NOIR<i>NO WAY OUT</i></a>
       <nav><span id="connection" class="connection">双人在线牌局</span><button id="sound-toggle" class="text-button" aria-pressed="false">音效：关</button><button id="rules-open" class="text-button">王牌图鉴 <span>↗</span></button></nav>
     </header>
 
     <main>
       <section id="home" class="home">
         <div class="hero">
-          <p class="eyebrow"><span class="tiny-line"></span> THE LOSER PAYS IN BLOOD</p>
-          <h1>坐下，<br>赌上<span>性命。</span></h1>
+          <h1>坐下，<br>赌上性命。</h1>
           <p class="hero-copy">看好底牌。盯住对面那只手。<br>地下室里，输掉的不只是筹码。</p>
-          <div class="hero-cards" aria-hidden="true"><div class="hero-card back"><span>◆</span><strong>NOIR</strong><small>THE BASEMENT CLUB</small></div><div class="hero-card front"><small>21 / THE LAST HAND</small><span class="hero-suit">♠</span><strong>21</strong><span>YOUR LIFE IS THE STAKE</span></div><div class="hero-card third"><small>XI</small><strong>11</strong><span>♠</span></div></div>
-          <div class="hero-caption"><span class="hero-index">01 / 21</span><p>王牌能救你。也能让你输得更惨。<br><small>RE7 · 21 / NOIR — BROWSER EDITION</small></p></div>
-          <p class="hero-note">两人对决 <span>◆</span> 共享牌堆 <span>◆</span> 生命赌注</p>
+          <div class="hero-cards" aria-hidden="true"><div class="hero-card back"><span>◆</span><strong>NOIR</strong><small>NO WAY OUT</small></div><div class="hero-card front"><small>21 / THE LAST HAND</small><span class="hero-suit">♠</span><strong>21</strong><span>YOUR LIFE IS THE STAKE</span></div><div class="hero-card third"><small>XI</small><strong>11</strong><span>♠</span></div></div>
         </div>
         <div class="entry-panel">
-          <p class="eyebrow">TAKE YOUR SEAT</p>
           <h2>椅子空着。<br>就等你了。</h2>
           <p class="muted">创建房间，用房间码或链接叫对手入座。</p>
           <label for="nickname">你的称呼</label>
           <input id="nickname" autocomplete="nickname" maxlength="20" placeholder="例如：幸存者" value="幸存者">
-          <div class="entry-settings"><div><span class="eyebrow">YOUR HOUSE RULES</span><p id="new-settings-summary">正在载入玩法…</p></div><div class="entry-settings-buttons"><button id="customize-room" class="secondary" disabled>游戏配置</button><button id="timer-open" class="secondary" disabled>计时设置</button></div></div>
-          <button id="create-room" class="primary wide" disabled>创建房间 <span>→</span></button>
-          <button id="solo-open" class="secondary wide" disabled>人机对战 →</button>
+          <div class="entry-settings"><div><span class="eyebrow">房间规则</span><p id="new-settings-summary">正在载入玩法…</p></div><div class="entry-settings-buttons"><button id="customize-room" class="secondary" disabled>游戏配置</button><button id="timer-open" class="secondary" disabled>计时设置</button></div></div>
+          <button id="create-room" class="primary wide" disabled>创建房间</button>
+          <button id="solo-open" class="secondary wide" disabled>人机对战</button>
           <div class="divider"><span>或加入朋友的牌局</span></div>
           <form id="join-form">
             <label for="room-code">房间码</label>
-            <div class="join-row"><input id="room-code" maxlength="8" autocomplete="off" spellcheck="false" placeholder="8 位房间码" aria-label="房间码"><button id="join-room" type="submit" class="secondary">加入 ↗</button></div>
+            <div class="join-row"><input id="room-code" maxlength="8" autocomplete="off" spellcheck="false" placeholder="8 位房间码" aria-label="房间码"><button id="join-room" type="submit" class="secondary">加入</button></div>
           </form>
           <p id="home-error" class="error" role="alert"></p>
-          <div class="entry-foot"><span>♠</span><p>两个人。一副牌。看谁撑到最后。<br><small>无需安装 · 等待房间保留 5 分钟</small></p></div>
+          <div class="entry-foot"><p>无需安装 · 等待房间保留 5 分钟</p></div>
         </div>
       </section>
 
@@ -67,7 +63,7 @@
               <section id="my-player" class="player mine" aria-label="我的牌区"></section>
               <p id="latest-action" class="latest-action" aria-live="polite"></p>
             </div>
-            <section class="trump-panel panel"><div class="section-heading"><h2>我的王牌 <small id="trump-count"></small></h2><span id="gesture-hint" class="muted" aria-live="polite">上拉出牌 · 右拉弃牌 · 点选查看</span><div class="hand-pages"><button id="hand-prev" class="secondary" aria-label="上一页王牌">‹</button><span id="hand-page"></span><button id="hand-next" class="secondary" aria-label="下一页王牌">›</button></div></div><div id="trump-hand" class="trump-hand"></div></section>
+            <section class="trump-panel panel"><div class="section-heading"><h2>我的王牌 <small id="trump-count"></small></h2><span id="gesture-hint" class="muted" aria-live="polite">上拉出牌 · 右拉弃牌</span><div class="hand-pages"><button id="hand-prev" class="secondary" aria-label="上一页王牌">‹</button><span id="hand-page"></span><button id="hand-next" class="secondary" aria-label="下一页王牌">›</button></div></div><div id="trump-hand" class="trump-hand"></div></section>
           </div>
           <aside class="game-console" aria-label="牌局操作">
             <section class="table-center"><div class="target-seal"><span>本局目标</span><strong id="target">21</strong></div><div class="target-note"><span id="deck-label"></span></div></section>
@@ -85,7 +81,7 @@
   </div>
   <dialog id="rules-dialog"><div class="dialog-heading"><div><p class="eyebrow">KNOW YOUR CARDS</p><h2>玩法与王牌图鉴</h2></div><button id="rules-close" class="secondary" aria-label="关闭图鉴">关闭 ×</button></div><p>双方共用一副不重复的数字牌（默认 1–11），各持一张暗牌和一张明牌。抽牌或停牌后轮到对手；使用和丢弃王牌不交接行动。双方停牌后比较与目标的距离，输家失去生命，生命耗尽则整场结束。</p><p>王牌可能改变目标、赌注、手牌或封锁操作。无效条件下使用仍可能消耗卡牌，与 Noir 原版一致。计时开启时，首次准备与行动分别计时；断线时暂停，60 秒内可刷新重连。图鉴以当前房间启用状态为准。</p><label for="catalog-search">查找王牌</label><input id="catalog-search" type="search" placeholder="名称或效果"><div id="catalog" class="catalog"></div></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
-  <dialog id="solo-dialog" aria-labelledby="solo-title"><div class="dialog-heading"><h2 id="solo-title">人机对战</h2><button id="solo-close" class="secondary">关闭 ×</button></div><p class="muted">原版 AI 策略。对手只知道自己的牌和公开信息。</p><h3>01 / 难度</h3><select id="ai-difficulty" aria-label="难度" hidden></select><div id="ai-difficulty-choices" class="ai-choices" role="group" aria-label="难度"></div><h3>02 / 打法风格</h3><select id="ai-style" aria-label="风格" hidden></select><div id="ai-style-choices" class="ai-choices" role="group" aria-label="打法风格"></div><p id="ai-style-note" class="muted"></p><p id="solo-settings" class="muted"></p><button id="solo-start" class="primary wide">入座 · 人机对战 →</button></dialog>
+  <dialog id="solo-dialog" aria-labelledby="solo-title"><div class="dialog-heading"><h2 id="solo-title">人机对战</h2><button id="solo-close" class="secondary">关闭 ×</button></div><p class="muted">原版 AI 策略。对手只知道自己的牌和公开信息。</p><h3>01 / 难度</h3><select id="ai-difficulty" aria-label="难度" hidden></select><div id="ai-difficulty-choices" class="ai-choices" role="group" aria-label="难度"></div><h3>02 / 打法风格</h3><select id="ai-style" aria-label="风格" hidden></select><div id="ai-style-choices" class="ai-choices" role="group" aria-label="打法风格"></div><p id="ai-style-note" class="muted"></p><p id="solo-settings" class="muted"></p><button id="solo-start" class="primary wide">入座 · 人机对战</button></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title">
     <div class="dialog-heading"><div><p class="eyebrow">MAKE YOUR OWN RULES</p><h2 id="settings-title">规矩，由你来定。</h2></div><button id="settings-close" class="secondary" type="button">关闭 ×</button></div>
     <p id="settings-intro" class="muted"></p>

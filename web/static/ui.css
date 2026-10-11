@@ -37,7 +37,7 @@ body.playing #match-menu button { flex:1; padding:8px 12px; min-height:44px; fon
   body:not(.playing) .masthead { height:60px }
   .home { padding:12px 0 }
   .hero { min-height:560px }
-  .hero-caption { margin-top:100px }
+
   .entry-panel { padding:14px 24px }
   .entry-panel h2 { font-size:28px; margin:8px 0 }
   .entry-panel>.muted { margin:6px 0 }
@@ -299,7 +299,7 @@ body.playing .trump-detail p { overflow:visible; max-height:none; flex:none }
   body.playing .drag-ghost { width:120px; height:98px }
 }
 @media (max-width:600px) {
-  .hero-caption p,.hero-note { display:none }
+
   #settings-dialog { padding:16px }
   .settings-draft-tools { flex-wrap:wrap; gap:5px; margin-bottom:10px }
   .settings-draft-tools #settings-preset-label { flex:1 1 100% }
