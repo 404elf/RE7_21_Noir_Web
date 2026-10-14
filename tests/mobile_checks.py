@@ -92,6 +92,15 @@ def check_timed_mobile(browser, url, config, seat_key, output):
                     expect(a.locator('#stay')).to_be_enabled()
                 a.screenshot(path=str(output / f'mobile-timed-{width}x{height}-{"dense" if dense else "normal"}.png'), animations='disabled')
                 report.append({'width': width, 'height': height, 'dense': dense, 'tableHeight': geometry['table']['height']})
+        # Leaving the table must not strand a touch user in fullscreen at home.
+        a.locator('#fullscreen-toggle').click()
+        expect(a.locator('#fullscreen-toggle')).to_have_attribute('aria-pressed', 'true')
+        a.locator('#leave-room').click()
+        a.locator('#confirm-ok').click()
+        expect(a.locator('#home')).to_be_visible()
+        expect(a.locator('#fullscreen-toggle')).to_be_visible()
+        a.locator('#fullscreen-toggle').click()
+        expect(a.locator('#fullscreen-toggle')).to_have_attribute('aria-pressed', 'false')
         assert not errors, errors
         return report
     finally:

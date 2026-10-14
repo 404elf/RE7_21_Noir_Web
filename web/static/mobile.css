@@ -2,6 +2,7 @@
 .game-hud { display:contents }
 #fullscreen-toggle,#table-menu-open { display:none }
 body.playing #fullscreen-toggle { display:inline-block }
+#fullscreen-toggle[aria-pressed="true"] { display:inline-block }
 #fullscreen-help,#table-menu-dialog { width:min(440px,calc(100% - 24px)); padding:20px }
 #fullscreen-help p { line-height:1.7 }
 body.playing #table-menu-dialog #match-menu { display:flex; gap:12px }
