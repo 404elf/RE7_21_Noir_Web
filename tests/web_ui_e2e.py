@@ -11,6 +11,7 @@ import urllib.request
 from urllib.parse import urlsplit
 
 from playwright.sync_api import expect, sync_playwright
+from mobile_checks import check_timed_mobile
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / '.artifacts'
@@ -200,7 +201,7 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('#draw-request')).to_be_hidden()
             report['stable_hand'] = {'keyboard_focus': True, 'unrelated_patch_child_changes': 0}
 
-            for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390)]:
+            for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390), (667, 375), (568, 320)]:
                 a.set_viewport_size({'width': width, 'height': height})
                 a.wait_for_timeout(80)
                 before_select = a.locator('#hit').bounding_box()
@@ -218,6 +219,9 @@ def check_usability(url, short_auth=True, network=False):
                 assert geometry['documentWidth'] <= width, geometry
                 assert geometry['documentHeight'] <= height, geometry
                 for name, bounds in geometry['bounds'].items():
+                    if name == 'match-clocks' and (width <= 760 or height <= 520):
+                        assert bounds['width'] == 0 and bounds['height'] == 0, 'Untimed mobile games must not reserve an empty clock panel'
+                        continue
                     assert bounds['width'] > 0 and bounds['height'] > 0, (name, geometry)
                     assert bounds['x'] >= 0 and bounds['y'] >= 0 and bounds['right'] <= width + 1 and bounds['bottom'] <= height + 1, (name, geometry)
                 table = geometry['bounds']['play-drop']
@@ -233,6 +237,7 @@ def check_usability(url, short_auth=True, network=False):
                     selectable:getComputedStyle(document.getElementById('game')).userSelect,
                     overlayFree:['hit','stay'].every(id=>{const button=document.getElementById(id),r=button.getBoundingClientRect(),point=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2); return button===point || button.contains(point);})};
                 }""")
+                a.screenshot(path=str(OUT / f'mobile-review-{width}x{height}.png'), animations='disabled')
                 assert quality['selectable'] == 'none', quality
                 assert quality['overlayFree'], quality
                 if width > 760 and height > 520:
@@ -244,7 +249,7 @@ def check_usability(url, short_auth=True, network=False):
                 assert quality['titleFont'] >= (16 if width <= 760 else 17), quality
                 # Dedicated clocks/stakes share the small-screen viewport;
                 # require readable glyphs as well as a visible card surface.
-                assert quality['numberHeight'] >= (110 if width > 760 and height > 520 else 85 if height > 700 else 60 if height > 520 else 44), quality
+                assert quality['numberHeight'] >= (110 if width > 760 and height > 520 else 85 if height > 700 else 60 if height > 520 else 44), (geometry, quality)
                 assert quality['numberFont'] >= (24 if width <= 360 else 28 if height > 520 else 22), quality
                 geometry['quality'] = quality
                 report['viewports'].append(geometry)
@@ -423,6 +428,7 @@ def check_usability(url, short_auth=True, network=False):
             # notes are scheduled. This verifies immediate stop, not just quiet
             # after their natural duration. The actual match still ends normally.
             a.evaluate('window.uiMuteOnResult = true')
+            a.locator('#table-menu-open').click()
             a.locator('#surrender').click()
             a.locator('#confirm-ok').click()
             expect(a.locator('#rematch')).to_be_visible()
@@ -437,6 +443,7 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('#rematch')).to_be_hidden()
             expect(a.locator('#game')).to_be_visible()
             # Check the ending controls with a freshly replenished full hand.
+            a.locator('#table-menu-open').click()
             a.locator('#surrender').click(); a.locator('#confirm-ok').click()
             expect(a.locator('#rematch')).to_be_visible()
             for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390)]:
@@ -448,9 +455,10 @@ def check_usability(url, short_auth=True, network=False):
                   return {top:button.top,bottom:button.bottom,tableTop:0,tableBottom:innerHeight};
                 }""")
                 assert result['top'] >= result['tableTop'] and result['bottom'] <= result['tableBottom'], (width,height,result)
+            report['timed_mobile'] = check_timed_mobile(browser, url, config, seat_key, OUT)
             assert not errors, errors
             (OUT / 'web-ui-report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
-            print('PASS: seven viewports, always-visible hands/actions, mouse/touch short gestures, pagination, auth recovery, delayed update recovery without replay, journal and rematch; zero browser errors')
+            print('PASS: nine viewports, six timed mobile sizes with eight number cards, native fullscreen, mouse/touch gestures, pagination, recovery, journal and rematch; zero browser errors')
         finally:
             for index, page in enumerate(browser.contexts):
                 for tab in page.pages:

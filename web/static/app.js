@@ -2,6 +2,7 @@ import { receive } from './transport.js';
 import { deal, feedback, submitted, clockFeedback, toggleSound, clearFeedback } from './presentation.js';
 import { SettingsEditor, settingsSummary } from './settings.js';
 import { gestureAction } from './gestures.js';
+import { initScreenControls } from './screen.js';
 const appRoot = new URL('./', import.meta.url);
 const storagePrefix = appRoot.pathname === '/' ? '' : appRoot.pathname;
 const seatKey = `${storagePrefix}noir-seat`, nameKey = `${storagePrefix}noir-name`;
@@ -19,6 +20,7 @@ let inspectedEffect = null, detailAnchor = null;
 let syncing = false;
 let handPage = 0, fieldPage = 0, lastReceived = 0;
 let networkRTT = null, commandSequence = 0, decisionStarted = 0;
+initScreenControls();
 const settingsEditor = new SettingsEditor(appRoot);
 let roomDraft = null;
 
@@ -233,6 +235,7 @@ function renderPlayer(p, mine, animate) {
   const columns = Math.max(1, Math.min(4, p.hand.length));
   cards.style.setProperty('--hand-columns', columns);
   cards.style.setProperty('--hand-rows', Math.ceil(p.hand.length / columns));
+  $('play-drop').style.setProperty(mine ? '--my-space' : '--opponent-space', `${Math.ceil(p.hand.length / columns)}fr`);
   const added = [];
   p.hand.forEach((number, index) => {
     const key = index === 0 ? 'first' : `number-${number}`;
@@ -262,7 +265,7 @@ function renderPlayer(p, mine, animate) {
 
 function renderGame(animate = false) {
   $('round-label').textContent = `第 ${state.round} 局`;
-  $('deck-label').textContent = `牌堆剩余 ${state.deck_count} 张`;
+  $('deck-label').textContent = `余牌 ${state.deck_count}`;
   $('target').textContent = state.target;
   state.players.forEach((p) => renderPlayer(p, p.id === state.pid, animate));
   renderMatchStatus();
@@ -270,7 +273,8 @@ function renderGame(animate = false) {
   document.querySelector('.field-effects').hidden = false;
   if (inspectedEffect && !state.active_trumps.some((t) => t.name === inspectedEffect)) inspectedEffect = null;
   const cards = myPlayer().trumps;
-  const pageSize = innerWidth <= 760 ? 3 : 6;
+  const landscape = innerWidth > 520 && innerHeight <= 520;
+  const pageSize = innerWidth <= 760 && !landscape ? 3 : 6;
   const pageCount = Math.max(1, Math.ceil(cards.length / pageSize));
   handPage = Math.min(handPage, pageCount - 1);
   $('hand-page').textContent = `${handPage + 1}/${pageCount}`;
@@ -315,6 +319,7 @@ function renderGame(animate = false) {
 
 function renderFieldTrumps() {
   const container = $('field-trumps');
+  $('play-drop').dataset.emptyField = String(!state.active_trumps.length);
   const cardWidth = innerWidth <= 760 || innerHeight <= 520 ? 84 : 112;
   const perPage = Math.max(1, Math.floor((container.clientWidth + 6) / (cardWidth + 6)));
   const pages = Math.max(1, Math.ceil(state.active_trumps.length / perPage));
@@ -336,6 +341,7 @@ function renderFieldTrumps() {
 function renderMatchStatus() {
   const players = [...state.players].sort((a, b) => Number(a.id === state.pid) - Number(b.id === state.pid));
   const timer = state.timer;
+  $('game').dataset.timed = String(timer.enabled);
   $('clock-mode').textContent = !timer.enabled ? '不限时' : timer.mode === 'fischer'
     ? `${timer.initial_minutes ?? '∞'}+${timer.increment_seconds} · 整场`
     : timer.mode === 'round' ? '每人每局' : '每次行动';

@@ -2,15 +2,18 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#100d0c">
   <meta name="description" content="RE7 / 21 — NOIR。两人、一副牌，用生命下注的在线王牌对决。">
   <title>21 · NOIR — 双人牌局</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./game.css">
   <link rel="stylesheet" href="./ui.css">
   <link rel="stylesheet" href="./visual.css">
+  <link rel="stylesheet" href="./mobile.css">
   <script type="module" src="./app.js"></script>
 </head>
 <body>
@@ -19,7 +22,7 @@
   <div class="app-shell">
     <header class="masthead">
       <a class="wordmark" href="./" aria-label="NOIR 首页"><b>21</b><span>/</span>NOIR<i>NO WAY OUT</i></a>
-      <nav><span id="connection" class="connection">双人在线牌局</span><button id="sound-toggle" class="text-button" aria-pressed="false">音效：关</button><button id="rules-open" class="text-button">王牌图鉴 <span>↗</span></button></nav>
+      <nav><span id="connection" class="connection">双人在线牌局</span><button id="sound-toggle" class="text-button" aria-pressed="false">音效：关</button><button id="rules-open" class="text-button">王牌图鉴 <span>↗</span></button><button id="fullscreen-toggle" class="text-button" aria-pressed="false" aria-label="进入网页全屏">全屏</button></nav>
     </header>
 
     <main>
@@ -48,7 +51,7 @@
       </section>
 
       <section id="room" hidden>
-        <div class="room-heading"><div><p class="eyebrow">THE BASEMENT / PRIVATE TABLE</p><h1>牌桌 <span id="room-label"></span></h1></div><div class="room-links"><button id="retry-connection" class="secondary" hidden>重新连接</button><button id="journal-open" class="secondary">战斗日志</button><button id="room-settings" class="secondary">房间规则</button><button id="copy-invite" class="secondary">邀请朋友 ↗</button><button id="leave-room" class="text-button">离席</button></div></div>
+        <div class="room-heading"><div><p class="eyebrow">THE BASEMENT / PRIVATE TABLE</p><h1>牌桌 <span id="room-label"></span></h1></div><div class="room-links"><button id="retry-connection" class="secondary" hidden>重新连接</button><button id="table-menu-open" class="secondary" aria-haspopup="dialog">更多</button><button id="journal-open" class="secondary">战斗日志</button><button id="room-settings" class="secondary">房间规则</button><button id="copy-invite" class="secondary">邀请朋友 ↗</button><button id="leave-room" class="text-button">离席</button></div></div>
         <div id="notice" class="notice" role="status" aria-live="polite"></div>
         <div id="lobby" class="lobby panel">
           <div><p class="eyebrow">BEFORE THE FIRST HAND</p><h2>等一个对手。然后开局。</h2><p class="muted">先看清规矩，双方确认并准备后开始。修改规则后需重新准备，开局后锁定。</p><div id="lobby-players" class="lobby-players"></div><button id="ready" class="primary" disabled>确认规则并准备</button><button id="edit-room-settings" class="text-button" hidden>修改房间规则 ↗</button></div>
@@ -66,8 +69,10 @@
             <section class="trump-panel panel"><div class="section-heading"><h2>我的王牌 <small id="trump-count"></small></h2><span id="gesture-hint" class="muted" aria-live="polite">上拉出牌 · 右拉弃牌</span><div class="hand-pages"><button id="hand-prev" class="secondary" aria-label="上一页王牌">‹</button><span id="hand-page"></span><button id="hand-next" class="secondary" aria-label="下一页王牌">›</button></div></div><div id="trump-hand" class="trump-hand"></div></section>
           </div>
           <aside class="game-console" aria-label="牌局操作">
-            <section class="table-center"><div class="target-seal"><span>本局目标</span><strong id="target">21</strong></div><div class="target-note"><span id="deck-label"></span></div></section>
+            <div class="game-hud">
+            <section class="table-center"><div class="target-seal"><span>目标</span><strong id="target">21</strong></div><div class="target-note"><span id="deck-label"></span></div></section>
             <section class="match-status" aria-label="计时与赌注"><div class="match-clock"><div class="status-heading"><span>计时</span><span id="clock-mode"></span></div><div id="match-clocks" class="match-clocks"></div></div><div class="match-stakes"><span>本局赌注</span><div id="stake-label"></div></div></section>
+            </div>
             <section class="turn-actions"><p id="turn-hint" role="status" aria-live="polite"></p><div><button id="hit" class="primary">抽牌 <kbd>H</kbd></button><button id="stay" class="secondary">停牌 <kbd>S</kbd></button></div><small>双停结算 · 王牌不结束行动</small></section>
             <section id="result-panel" class="result-panel" hidden><h2 id="result-title"></h2><p id="result-text"></p><button id="rematch" class="primary" hidden>再来一场</button></section>
             <section class="trump-detail" aria-label="王牌详情" hidden><div class="detail-heading"><strong id="selected-title"></strong></div><p id="selected-description"></p></section>
@@ -79,6 +84,8 @@
     </main>
     <footer><span>RE7 / 21 — NOIR</span><span>下一张牌，可能就是最后一张。</span><span>FAN-MADE · v1.5.3 RULES</span></footer>
   </div>
+  <dialog id="fullscreen-help" aria-labelledby="fullscreen-help-title"><div class="dialog-heading"><h2 id="fullscreen-help-title">让牌桌占满屏幕</h2><button id="fullscreen-help-close" class="secondary">关闭</button></div><p id="fullscreen-help-copy"></p><p>在 iPhone / iPad 上，可从 Safari 的分享菜单选择“添加到主屏幕”，再从新图标打开。其他浏览器可查看菜单中的“安装应用”或“添加到主屏幕”。</p><p class="muted">横竖屏都可以玩。旋转手机会自动调整牌桌。</p></dialog>
+  <dialog id="table-menu-dialog" aria-labelledby="table-menu-title"><div class="dialog-heading"><h2 id="table-menu-title">对局操作</h2><button id="table-menu-close" class="secondary">关闭</button></div></dialog>
   <dialog id="rules-dialog"><div class="dialog-heading"><div><p class="eyebrow">KNOW YOUR CARDS</p><h2>玩法与王牌图鉴</h2></div><button id="rules-close" class="secondary" aria-label="关闭图鉴">关闭 ×</button></div><p>双方共用一副不重复的数字牌（默认 1–11），各持一张暗牌和一张明牌。抽牌或停牌后轮到对手；使用和丢弃王牌不交接行动。双方停牌后比较与目标的距离，输家失去生命，生命耗尽则整场结束。</p><p>王牌可能改变目标、赌注、手牌或封锁操作。无效条件下使用仍可能消耗卡牌，与 Noir 原版一致。计时开启时，首次准备与行动分别计时；断线时暂停，60 秒内可刷新重连。图鉴以当前房间启用状态为准。</p><label for="catalog-search">查找王牌</label><input id="catalog-search" type="search" placeholder="名称或效果"><div id="catalog" class="catalog"></div></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
   <dialog id="solo-dialog" aria-labelledby="solo-title"><div class="dialog-heading"><h2 id="solo-title">人机对战</h2><button id="solo-close" class="secondary">关闭 ×</button></div><p class="muted">原版 AI 策略。对手只知道自己的牌和公开信息。</p><h3>01 / 难度</h3><select id="ai-difficulty" aria-label="难度" hidden></select><div id="ai-difficulty-choices" class="ai-choices" role="group" aria-label="难度"></div><h3>02 / 打法风格</h3><select id="ai-style" aria-label="风格" hidden></select><div id="ai-style-choices" class="ai-choices" role="group" aria-label="打法风格"></div><p id="ai-style-note" class="muted"></p><p id="solo-settings" class="muted"></p><button id="solo-start" class="primary wide">入座 · 人机对战</button></dialog>
