@@ -202,10 +202,28 @@ def check_usability(url, short_auth=True, network=False):
             report['stable_hand'] = {'keyboard_focus': True, 'unrelated_patch_child_changes': 0}
 
             for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390), (667, 375), (568, 320)]:
+                print(f'Checking table at {width}x{height}', flush=True)
                 a.set_viewport_size({'width': width, 'height': height})
                 a.wait_for_timeout(80)
                 before_select = a.locator('#hit').bounding_box()
-                a.locator('.trump-card').first.click()
+                try:
+                    a.locator('.trump-card').first.click(timeout=5000)
+                except Exception:
+                    # Retain the actual geometry if a browser cannot find two
+                    # stable frames; this distinguishes layout motion from I/O.
+                    frames = a.evaluate('''() => new Promise(resolve => {
+                      const frames=[];
+                      function sample() {
+                        frames.push(Object.fromEntries(['#game','.table','.trump-panel','.trump-card','.game-console','.game-hud'].map(selector=>{
+                          const n=document.querySelector(selector),r=n.getBoundingClientRect(),s=getComputedStyle(n);
+                          return [selector,{x:r.x,y:r.y,w:r.width,h:r.height,rows:s.gridTemplateRows,transform:s.transform}];
+                        })));
+                        if(frames.length<8) requestAnimationFrame(sample); else resolve(frames);
+                      }
+                      requestAnimationFrame(sample);
+                    })''')
+                    print('UNSTABLE TABLE', width, height, json.dumps(frames), flush=True)
+                    raise
                 geometry = a.evaluate("""() => {
                   const ids = ['play-drop', 'opponent', 'my-player', 'trump-hand', 'hit', 'stay', 'match-clocks', 'stake-label'];
                   return {width: innerWidth, height: innerHeight,

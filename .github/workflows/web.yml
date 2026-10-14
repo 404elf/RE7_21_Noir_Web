@@ -63,8 +63,10 @@ jobs:
         if: always()
         with:
           name: browser-screenshots
+          include-hidden-files: true
           path: |
             .artifacts/web-*.png
+            .artifacts/mobile-*.png
             .artifacts/web-network.json
             .artifacts/web-ui-report.json
             .artifacts/web-latency-report.json
