@@ -201,6 +201,24 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('#draw-request')).to_be_hidden()
             report['stable_hand'] = {'keyboard_focus': True, 'unrelated_patch_child_changes': 0}
 
+            # Hover must not move the hit target away from a pointer at its edge.
+            # A lift-on-hover can alternate enter/leave forever in Chromium.
+            a.keyboard.press('Escape')
+            a.mouse.move(0, 0)
+            a.wait_for_timeout(150)
+            card = a.locator('.trump-card').first.bounding_box()
+            a.mouse.move(card['x'] + card['width'] / 2, card['y'] + card['height'] - 1)
+            positions = a.evaluate('''() => new Promise(resolve => {
+              const ys=[];
+              function sample() {
+                ys.push(document.querySelector('.trump-card').getBoundingClientRect().y);
+                if(ys.length<24) requestAnimationFrame(sample); else resolve(ys);
+              }
+              requestAnimationFrame(sample);
+            })''')
+            assert max(positions) - min(positions) < .5, ('hover moved its hit target', positions)
+            report['stable_hand']['edge_hover_motion_px'] = max(positions) - min(positions)
+
             for width, height in [(1920, 1080), (1440, 900), (1366, 768), (390, 844), (360, 640), (320, 568), (844, 390), (667, 375), (568, 320)]:
                 print(f'Checking table at {width}x{height}', flush=True)
                 a.set_viewport_size({'width': width, 'height': height})

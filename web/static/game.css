@@ -71,9 +71,9 @@ body.playing #gesture-hint:after { content:none }
 .hand-pages { display:flex; align-items:center; gap:6px; font-size:12px; margin-left:auto; white-space:nowrap }
 .hand-pages .secondary { padding:0; width:36px; min-height:36px; font-size:22px }
 body.playing .trump-hand { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; padding:4px 0 0; min-height:0; overflow:visible; touch-action:none }
-body.playing .trump-card { width:auto; min-width:0; height:110px; min-height:0; padding:10px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:8px; touch-action:none; background:#2a231b; border-color:#79624580; transition:transform .1s,border-color .1s }
+body.playing .trump-card { width:auto; min-width:0; height:110px; min-height:0; padding:10px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:8px; touch-action:none; background:#2a231b; border-color:#79624580; transform:none; transition:transform .1s,border-color .1s }
 body.playing .trump-card:before,body.playing .trump-card:after { display:none }
-body.playing .trump-card:hover,body.playing .trump-card.selected { transform:translateY(-3px); border-color:var(--gold) }
+body.playing .trump-card.selected { transform:translateY(-3px); border-color:var(--gold) }
 body.playing .trump-card .category { font-size:11px }
 body.playing .trump-card strong { font-size:19px; line-height:1.2; margin:0; font-family:var(--sans); white-space:normal }
 body.playing .trump-card>small { font-size:11px; line-height:1; margin:0 }
