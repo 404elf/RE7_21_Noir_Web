@@ -28,6 +28,7 @@ def check_timed_mobile(browser, url, config, seat_key, output):
             page.goto(url + '/?room=' + host['room'])
             expect(page.locator('#ready')).to_be_enabled()
         a.locator('#ready').click()
+        expect(b.locator('#lobby-players .lobby-seat').first).to_contain_text('已准备')
         b.locator('#ready').click()
         expect(a.locator('#game')).to_have_attribute('data-timed', 'true')
         expect(a.locator('#stay')).to_be_enabled()
