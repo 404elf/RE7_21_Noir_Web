@@ -177,6 +177,8 @@ def check_usability(url, short_auth=True, network=False):
                 expect(page.locator('#ready')).to_be_enabled(timeout=10000)
             assert a.evaluate('window.uiWire.retries') == (1 if short_auth else 0)
             report['recovery']['auth_timeout'] = 'same reserved seat recovered automatically' if short_auth else 'production auth threshold unchanged'
+            for page in (a, b):
+                expect(page.locator('#lobby-players .lobby-seat').nth(1)).to_contain_text('已入座')
             a.locator('#ready').click()
             expect(b.locator('#lobby-players .lobby-seat').first).to_contain_text('已准备')
             b.locator('#ready').click()

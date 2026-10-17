@@ -27,6 +27,8 @@ def check_timed_mobile(browser, url, config, seat_key, output):
             page.evaluate('([key, seat]) => sessionStorage.setItem(key, JSON.stringify(seat))', [seat_key, seat])
             page.goto(url + '/?room=' + host['room'])
             expect(page.locator('#ready')).to_be_enabled()
+        for page in pages:
+            expect(page.locator('#lobby-players .lobby-seat').nth(1)).to_contain_text('已入座')
         a.locator('#ready').click()
         expect(b.locator('#lobby-players .lobby-seat').first).to_contain_text('已准备')
         b.locator('#ready').click()
