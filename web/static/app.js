@@ -571,6 +571,13 @@ function endDrag() {
   drag?.ghost?.remove(); drag = null; document.body.classList.remove('dragging');
   $('gesture-hint').textContent = '上拉出牌 · 右拉弃牌';
 }
+function dragAction(event) {
+  const table = $('play-drop').getBoundingClientRect();
+  const margin = drag.touch ? 24 : 16;
+  const overTable = event.clientX >= table.left - margin && event.clientX <= table.right + margin
+    && event.clientY >= table.top - margin && event.clientY <= table.bottom + margin;
+  return gestureAction(event.clientX - drag.x, event.clientY - drag.y, drag.touch, overTable);
+}
 document.addEventListener('pointermove', (event) => {
   if (!drag || event.pointerId !== drag.pointer) return;
   if (!drag.ghost && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 8) return;
@@ -582,14 +589,14 @@ document.addEventListener('pointermove', (event) => {
     suppressClick = true;
   }
   drag.ghost.style.left = `${event.clientX - 55}px`; drag.ghost.style.top = `${event.clientY - 65}px`;
-  const action = gestureAction(event.clientX - drag.x, event.clientY - drag.y, drag.touch);
+  const action = dragAction(event);
   $('gesture-hint').textContent = action === 'TRUMP' ? '松手出牌 ↑' : action === 'DISCARD' ? '松手弃牌 →' : '向上出牌 · 向右弃牌';
   event.preventDefault();
 });
 document.addEventListener('pointerup', (event) => {
   if (!drag || event.pointerId !== drag.pointer) return;
   if (drag.ghost) {
-    const action = gestureAction(event.clientX - drag.x, event.clientY - drag.y, drag.touch);
+    const action = dragAction(event);
     if (drag.revision === state.revision && action && canUseTrump(action)) send('action', action, selected);
     else if (action) toast($('turn-hint').textContent || '当前不能出牌。');
   }

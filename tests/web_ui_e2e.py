@@ -108,25 +108,29 @@ def held_count(page):
     return int(page.locator('#trump-count').inner_text().split('/')[0].strip())
 
 
-def mouse_drag(page, dx, dy):
+def mouse_drag(page, dx, dy, path=None):
     bounds = page.locator('.trump-card').first.bounding_box()
     x, y = bounds['x'] + bounds['width'] / 2, bounds['y'] + bounds['height'] / 2
     page.mouse.move(x, y)
     page.mouse.down()
+    if path:
+        for px, py in path:
+            page.mouse.move(x + px, y + py, steps=3)
     page.mouse.move(x + dx, y + dy, steps=5)
     ghost = page.locator('.drag-ghost').bounding_box()
     assert ghost and ghost['width'] <= 140 and ghost['height'] <= 140, 'Drag feedback must remain card-sized'
     page.mouse.up()
 
 
-def touch_drag(page, dx, dy):
+def touch_drag(page, dx, dy, path=None):
     bounds = page.locator('.trump-card').first.bounding_box()
     x, y = bounds['x'] + bounds['width'] / 2, bounds['y'] + bounds['height'] / 2
     cdp = page.context.new_cdp_session(page)
     try:
         cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [{'x': x, 'y': y}]})
-        for step in range(1, 6):
-            cdp.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [{'x': x + dx * step / 5, 'y': y + dy * step / 5}]})
+        points = path or [(dx * step / 5, dy * step / 5) for step in range(1, 6)]
+        for px, py in [*points, (dx, dy)]:
+            cdp.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [{'x': x + px, 'y': y + py}]})
         cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
     finally:
         cdp.detach()
@@ -312,11 +316,19 @@ def check_usability(url, short_auth=True, network=False):
             mouse_drag(a, -60, 30)
             a.wait_for_timeout(150)
             assert held_count(a) == before, 'Left/down movement must not discard'
-            mouse_drag(a, 0, -40)
+            mouse_drag(a, 0, 0, path=[(80, -60), (120, -80), (20, -12)])
+            a.wait_for_timeout(150)
+            assert held_count(a) == before, 'Returning a curved drag to the hand must cancel'
+            card = a.locator('.trump-card').first.bounding_box()
+            table = a.locator('#play-drop').bounding_box()
+            dx = table['x'] + table['width'] - 24 - (card['x'] + card['width'] / 2)
+            dy = table['y'] + table['height'] - 12 - (card['y'] + card['height'] / 2)
+            assert abs(dx) > -dy * 4, 'Exercise a table drop outside the upward gesture cone'
+            mouse_drag(a, dx, dy, path=[(dx * .25, 15), (dx * .65, dy * .3)])
             assert_count(a, before - 1)
             expect(a.locator('#field-trumps .effect')).to_have_count(1)
             expect(a.locator('#stake-label > div').first.locator('strong')).to_have_text('2')
-            report['gestures'].append('mouse: up40px plays without reaching table')
+            report['gestures'].append('mouse: wide curved table drop plays once; returning to hand cancels')
             a.locator('.trump-card').first.click()
             expect(a.locator('#stay')).to_be_enabled()
             mouse_drag(a, 60, 0)
@@ -327,9 +339,9 @@ def check_usability(url, short_auth=True, network=False):
             expect(a.locator('.trump-card')).to_have_count(3)
             a.locator('.trump-card').first.click()
             expect(a.locator('#stay')).to_be_enabled()
-            touch_drag(a, 0, -44)
+            touch_drag(a, 92, -44, path=[(16, 8), (48, -4), (76, -22)])
             assert_count(a, before - 3)
-            report['gestures'].append('touch: up44px plays; browser page does not scroll')
+            report['gestures'].append('touch: diagonal curved throw plays once; browser page does not scroll')
             a.locator('.trump-card').first.click()
             expect(a.locator('#stay')).to_be_enabled()
             touch_drag(a, 64, 0)
