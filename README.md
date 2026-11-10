@@ -1,56 +1,114 @@
-# RE7 / 21 — NOIR Web
+<h1 align="center">RE7 / 21 — NOIR Web</h1>
 
-独立的浏览器双人 21 点游戏。复用 [RE7_21_Noir 桌面版](https://github.com/404elf/RE7_21_Noir) 的 Python 规则、全部 48 张王牌与 JSON 配置，以 FastAPI / WebSocket 提供联机；前端使用 HTML、CSS 和 JavaScript，无需安装 Pygame、Node.js 或数据库。
+<p align="center">
+  <strong>浏览器里的 21 点对决，保留原版 48 张王牌。</strong><br>
+  用房间码约朋友打一场，或选一个 AI 对手。打开网页就能玩，无需注册。
+</p>
 
-![Noir Web 首页](docs/web-noir-home.png)
+<p align="center">
+  <a href="https://game.404elf.dev/re7/"><strong>在线试玩 →</strong></a>
+  · <a href="#快速开始">快速开始</a>
+  · <a href="#自托管">自托管</a>
+  · <a href="#参与贡献">参与贡献</a>
+</p>
 
-两个浏览器通过房间码或邀请链接入座，完整打到生命耗尽，可刷新重连、求和、投降与再战。支持独立多房间、私有状态补丁和本地倒计时；界面包含纸牌翻转、拖牌、粒子、可选音效、手机布局与减少动态效果支持。
+<p align="center">
+  <a href="https://github.com/404elf/RE7_21_Noir_Web/actions/workflows/web.yml"><img alt="Browser game CI" src="https://github.com/404elf/RE7_21_Noir_Web/actions/workflows/web.yml/badge.svg?branch=main"></a>
+  <a href="#从源码运行"><img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12%2B-3776AB"></a>
+  <a href="LICENSE"><img alt="MIT 许可证" src="https://img.shields.io/badge/License-MIT-blue"></a>
+</p>
 
-首页也可选择「人机对战」：复用原版四档难度和三种风格（极难不区分风格），支持相同自定义规则、计时、刷新和再战。AI 在服务器的独立进程中计算，只接收己方牌和公开信息。牌桌以原版左侧对手／场牌／自己、底部手中王牌、右侧目标与操作的固定分区为基准，手机保持相同信息顺序。
+[![NOIR Web 桌面牌桌：上方是对手，下方是自己的牌与王牌，右侧是回合操作](docs/web-noir-table.png)](https://game.404elf.dev/re7/)
 
-建房前点击「自定义玩法」，选择原版 8 套预设，或调整生命、目标、牌堆、王牌资源、牌池权重和计时。可导入原版 `config.json` / 预设 / `timer.json`，并分别导出规则与计时 JSON 分享。每个房间独立配置；双方可查看完整规则，房主在等待阶段修改后双方需重新准备，开局与再战期间规则锁定。无需重启服务或改服务器文件。
+<details>
+<summary>查看手机牌桌</summary>
+<br>
+<img src="docs/web-noir-mobile.png" alt="NOIR Web 手机竖屏牌桌" width="360">
+</details>
 
-## 本地运行
+## 快速开始
 
-需要 Python 3.12+，在虚拟环境中执行：
+1. 打开[在线试玩](https://game.404elf.dev/re7/)，输入昵称。
+2. **和朋友玩**：创建房间，把房间码或邀请链接发给对方。双方确认规则并准备即可开局。
+3. **自己玩**：选择「人机对战」，挑选难度和打法后入座。人机也通过网站服务器运行。
+
+抽牌或停牌可以点按钮，也可以用键盘 `H` / `S`。点选王牌查看效果，向上拖出牌，向右拖弃牌。在原标签页刷新，可以恢复仍有效的席位。
+
+## 游戏特色
+
+| 特色 | 玩法 |
+| --- | --- |
+| **48 张原版王牌** | 调整目标点数、改变赌注或交换牌张，让一手普通的 21 点有不同的解法。 |
+| **双人房间与人机对战** | 邀朋友进行完整对局，支持断线重连和再战；也可挑战原版四档 AI 难度。 |
+| **每桌独立规则** | 选择 8 套原版预设之一，或调整牌池、生命和计时。支持 `5+3` 等计时预设与规则 JSON 导入、导出。 |
+| **适配手机** | 竖屏与横屏布局、触屏拖牌、可选音效；浏览器支持时可进入全屏。 |
+
+Web 版复用桌面版的 Python 规则。FastAPI 负责房间、行动校验与计时，浏览器通过 WebSocket 同步牌局；前端使用 HTML、CSS 和 JavaScript，无需 Node.js 构建。
+
+## 自托管
+
+### Docker Compose
+
+需要 Docker 和 Compose。默认仅监听本机，适合先试跑：
+
+```sh
+git clone https://github.com/404elf/RE7_21_Noir_Web.git
+cd RE7_21_Noir_Web
+docker compose -p noir-web up --build -d
+```
+
+打开 [http://127.0.0.1:8000](http://127.0.0.1:8000)。健康检查入口为 `/healthz`；停止服务用 `docker compose -p noir-web down`。
+
+### 从源码运行
+
+在仓库目录使用 **Python 3.12+** 创建虚拟环境：
+
+```sh
+python -m venv .venv-web
+```
+
+| 系统 | 激活命令 |
+| --- | --- |
+| macOS / Linux | `source .venv-web/bin/activate` |
+| Windows PowerShell | `.\.venv-web\Scripts\Activate.ps1` |
 
 ```sh
 python -m pip install -r requirements-web.txt
 python -m uvicorn web.app:app --host 127.0.0.1 --port 8000 --workers 1 --ws-max-size 2048 --ws-max-queue 8
 ```
 
-打开 <http://127.0.0.1:8000>。Docker 运行：
+打开 [http://127.0.0.1:8000](http://127.0.0.1:8000)。Web 版不需要 Pygame 或数据库。测试双人对局时，请从首页新开第二个标签页，避免复制已有的席位凭证。
 
-```sh
-docker compose -p noir-web up --build -d
-```
+### 部署到子路径
 
-## 游戏路径与域名
+将 [环境变量示例](deploy/noir.env.example) 复制为 `.env`，按自己的域名修改。以正式试玩地址为例：
 
-部署到 `https://game.404elf.dev/re7` 时配置：
-
-```env
+```dotenv
 NOIR_BASE_PATH=/re7
 NOIR_ORIGIN=https://game.404elf.dev
 ```
 
-反向代理须保留 `/re7` 前缀并转发 WebSocket。以后更换 `404elf.dev`，只需更新 Origin、DNS、证书与代理配置，无需改源码或重建镜像。默认服务在根路径，本地 HTTP 测试时 Origin 可留空。[完整运行、配置、部署与换域名说明](docs/WEB.md) · [部署示例](deploy/noir.env.example)
+反向代理须**保留 `/re7` 前缀并转发 WebSocket**。`NOIR_ORIGIN` 只填来源，不带路径。房间保存在内存中，请运行 **一个 worker、一个服务副本**；重启会清空当前房间。
 
-## 验证
+- [完整运行、配置与部署指南](docs/WEB.md)
+- [Nginx 子路径代理示例](deploy/nginx-re7.conf.example)
+- [界面设计与取舍](docs/DESIGN.md)
+
+## 参与贡献
+
+欢迎[提交 Issue](https://github.com/404elf/RE7_21_Noir_Web/issues) 或 Pull Request。报告问题时请附上复现步骤、浏览器和设备；涉及计时或王牌时，也请注明房间配置。
+
+在开发环境运行基础回归和双浏览器测试：
 
 ```sh
 python -m pip install -r requirements-web-dev.txt
 python -m playwright install chromium
 python -m pytest tests -q
 python tests/web_e2e.py
-python tests/web_e2e.py --base-path /re7
-python tests/web_ai_e2e.py
 ```
 
-CI 在不安装 Pygame 的环境中验证共享规则、计时、全部王牌、消息隐私、重连、双浏览器完整对局、两套自定义规则并行对局、JSON 导入导出、准备确认、子路径及标准 Docker 构建。截图和消息字节报告作为 CI 附件保存。
+[GitHub Actions](https://github.com/404elf/RE7_21_Noir_Web/actions/workflows/web.yml) 另外验证子路径、界面、人机、延迟和 Docker 镜像。完整测试命令见 [Web 指南](docs/WEB.md#测试)。
 
-## 当前边界
+## 来源与许可
 
-房间保存在单进程内存中，重启会丢失；只运行一个 Web worker / 一个副本。当前上限为 64 个房间，其中最多 8 个人机房间、2 个 AI 决策进程；没有经过容量压测。人机也需连接服务器，Linux 每次计算最多 2 秒，超预算停牌。没有账号、排位、持久回放或旁观。Safari、Firefox、实际移动设备与公网弱网尚未完整验收。默认关闭行动计时；可通过 `timer.json` 启用已有准备/行动超时规则。
-
-本仓库独立发布和部署，不改变原桌面版的 main 或发布流程。复用来源、同步步骤与许可证见 [UPSTREAM.md](UPSTREAM.md) 和 [LICENSE](LICENSE)。
+这是 [RE7_21_Noir 桌面版](https://github.com/404elf/RE7_21_Noir) 的独立浏览器版本。共享规则的来源与同步方式见 [UPSTREAM.md](UPSTREAM.md)。代码以 [MIT 许可证](LICENSE) 发布。
