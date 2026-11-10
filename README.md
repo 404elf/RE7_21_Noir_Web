@@ -8,6 +8,7 @@
 <p align="center">
   <a href="https://game.404elf.dev/re7/"><strong>在线试玩 →</strong></a>
   · <a href="#快速开始">快速开始</a>
+  · <a href="#系列版本">系列版本</a>
   · <a href="#自托管">自托管</a>
   · <a href="#参与贡献">参与贡献</a>
 </p>
@@ -44,6 +45,14 @@
 | **适配手机** | 竖屏与横屏布局、触屏拖牌、可选音效；浏览器支持时可进入全屏。 |
 
 Web 版复用桌面版的 Python 规则。FastAPI 负责房间、行动校验与计时，浏览器通过 WebSocket 同步牌局；前端使用 HTML、CSS 和 JavaScript，无需 Node.js 构建。
+
+## 系列版本
+
+| 版本 | 怎么选 | 入口 |
+| --- | --- | --- |
+| **NOIR 网页版**（本仓库） | 想直接打开网页，和朋友用房间码联机，或和 AI 对战。 | [在线试玩](https://game.404elf.dev/re7/) |
+| **NOIR 桌面版** | 想用 Windows 客户端，体验 NOIR 的桌面界面、人机与局域网对战。 | [下载 Windows 版](https://github.com/404elf/RE7_21_Noir/releases/latest) · [源码](https://github.com/404elf/RE7_21_Noir) |
+| **RE7_21 早期版** | 想体验系列早期的桌面实现，通过组网联机，用外置配置文件调整规则。 | [项目主页](https://github.com/404elf/RE7_21) |
 
 ## 自托管
 
